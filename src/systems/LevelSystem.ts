@@ -4,6 +4,7 @@ import type { Character, CharacterStats, AllocatedStats } from '@/config/types';
 import { MAX_LEVEL, ATTRIBUTE_POINTS_PER_LEVEL, getExpRequired } from '@/config/constants';
 import { eventBus } from './EventBus';
 import { CLASSES } from '@/data/classes';
+import { WARRIOR_INITIAL_SKILLS, MAGE_INITIAL_SKILLS } from '@/data/skills';
 
 // ==================== 经验计算 ====================
 
@@ -207,7 +208,11 @@ export function createCharacter(name: string, characterClass: 'warrior' | 'mage'
       maxSlotsPerCategory: 30,
       gold: 0,
     },
-    skills: [],
+    skills: (characterClass === 'warrior' ? WARRIOR_INITIAL_SKILLS : MAGE_INITIAL_SKILLS).map(s => ({
+      skillId: s.id,
+      level: 1,
+      cooldownRemaining: 0,
+    })),
     weaponMasteries: [],
     position: { x: 0, y: 0 },
   };

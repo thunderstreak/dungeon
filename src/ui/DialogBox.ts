@@ -10,6 +10,7 @@ export class DialogBox {
   private nameText: Phaser.GameObjects.Text;
   private contentText: Phaser.GameObjects.Text;
   private closeBtn: Phaser.GameObjects.Container;
+  private overlay: Phaser.GameObjects.Rectangle;
   private optionBtns: Phaser.GameObjects.Text[] = [];
   isOpen = false;
 
@@ -18,13 +19,13 @@ export class DialogBox {
 
     this.container = scene.add.container(0, 0);
     this.container.setDepth(2000);
+    this.container.setScrollFactor(0);
     this.container.setVisible(false);
 
-    // 背景遮罩（点击关闭）
-    const overlay = scene.add.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0x000000, 0.4)
-      .setInteractive();
-    overlay.on('pointerdown', () => this.hide());
-    this.container.add(overlay);
+    // 背景遮罩（点击关闭，初始不可交互）
+    this.overlay = scene.add.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0x000000, 0.4);
+    this.overlay.on('pointerdown', () => this.hide());
+    this.container.add(this.overlay);
 
     // 对话框背景（居中）
     const boxWidth = 500;
@@ -88,7 +89,11 @@ export class DialogBox {
 
   show(npcData: NPCData, dialogId: string = 'greeting'): void {
     const dialog = npcData.dialogs.find(d => d.id === dialogId) ?? npcData.dialogs[0];
-    if (!dialog) return;
+    if (!dialog) {
+      console.log('[DialogBox] no dialog found for', npcData.name);
+      return;
+    }
+    console.log('[DialogBox] showing:', npcData.name, dialog.text.slice(0, 30));
 
     this.nameText.setText(npcData.name);
     this.contentText.setText(dialog.text);
@@ -130,11 +135,19 @@ export class DialogBox {
     }
 
     this.container.setVisible(true);
+    this.overlay.setInteractive();
     this.isOpen = true;
   }
 
   hide(): void {
     this.container.setVisible(false);
+    this.overlay.disableInteractive();
+    this.isOpen = false;
+  }
+
+  destroy(): void {
+    this.container.destroy(true);
+    this.optionBtns = [];
     this.isOpen = false;
   }
 }

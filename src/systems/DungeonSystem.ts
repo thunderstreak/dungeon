@@ -1,12 +1,10 @@
-// 地牢系统 - 楼层进度、深渊模式、房间类型
+// 地牢系统 - 楼层进度、深渊模式
 
 import type { Character } from '@/config/types';
 import { TOTAL_DUNGEON_FLOORS, ABYSS_TRIGGER_RATE, FLOOR_DIFFICULTY_MULTIPLIER } from '@/config/constants';
 import { eventBus } from './EventBus';
 
 // ==================== 地牢状态 ====================
-
-export type RoomType = 'normal' | 'elite' | 'treasure' | 'trap' | 'shop' | 'rest' | 'boss';
 
 export interface DungeonFloor {
   floor: number;
@@ -84,15 +82,10 @@ export function getUnlockedFloors(state: DungeonState): number[] {
 
 // ==================== 深渊模式 ====================
 
-/** 尝试触发深渊模式 */
+/** 尝试触发深渊模式（仅判定概率，不修改状态） */
 export function tryTriggerAbyss(state: DungeonState): boolean {
   if (state.isAbyss) return false; // 已经是深渊
-  if (Math.random() < ABYSS_TRIGGER_RATE) {
-    state.isAbyss = true;
-    eventBus.emit('dungeon:abyssTriggered', undefined as never);
-    return true;
-  }
-  return false;
+  return Math.random() < ABYSS_TRIGGER_RATE;
 }
 
 /** 退出深渊模式 */
@@ -131,19 +124,6 @@ export function isBossDefeated(state: DungeonState, floor: number): boolean {
 }
 
 // ==================== 房间管理 ====================
-
-/** 生成房间类型 */
-export function generateRoomType(floor: number, isBossRoom: boolean): RoomType {
-  if (isBossRoom) return 'boss';
-
-  const roll = Math.random();
-  if (roll < 0.50) return 'normal';
-  if (roll < 0.65) return 'elite';
-  if (roll < 0.78) return 'trap';
-  if (roll < 0.88) return 'treasure';
-  if (roll < 0.94) return 'rest';
-  return 'shop';
-}
 
 /** 房间清理完成 */
 export function clearRoom(state: DungeonState, roomId: string): void {

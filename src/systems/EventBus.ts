@@ -51,6 +51,18 @@ export interface GameEvents {
   'game:load': void;
   'game:pause': void;
   'game:resume': void;
+
+  // 存档事件
+  'save:complete': { slot: number; timestamp: number };
+  'save:deleted': { slot: number };
+  'save:autoSave': { slot: number };
+
+  // 音频事件
+  'audio:playBgm': { scene: string; volume: number };
+  'audio:stopBgm': void;
+  'audio:playSfx': { type: string; volume: number };
+  'audio:bgmVolumeChange': { volume: number };
+  'audio:sfxVolumeChange': { volume: number };
 }
 
 class EventBus {

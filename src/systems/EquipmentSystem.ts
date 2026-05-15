@@ -59,9 +59,16 @@ export function calculateEquipmentBonuses(character: Character): Map<string, { f
   for (const slot of Object.values(character.equipment)) {
     if (!slot) continue;
 
+    // 0耐久时属性减半
+    const durabilityMultiplier = slot.durability <= 0 ? 0.5 : 1;
+
     // 基础属性加成
     for (const stat of slot.stats) {
-      addStatBonus(bonuses, stat);
+      addStatBonus(bonuses, {
+        stat: stat.stat,
+        type: stat.type,
+        value: Math.floor(stat.value * durabilityMultiplier),
+      });
     }
 
     // 强化加成: 每级+2%基础属性
@@ -72,7 +79,7 @@ export function calculateEquipmentBonuses(character: Character): Map<string, { f
           addStatBonus(bonuses, {
             stat: stat.stat,
             type: 'flat',
-            value: Math.floor(stat.value * enhanceMultiplier),
+            value: Math.floor(stat.value * enhanceMultiplier * durabilityMultiplier),
           });
         }
       }

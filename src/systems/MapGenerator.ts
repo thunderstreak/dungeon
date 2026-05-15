@@ -26,15 +26,15 @@ export interface RoomLayout {
 
 /** 房间尺寸配置 */
 const ROOM_CONFIG = {
-  minWidth: 7,
-  maxWidth: 11,
-  minHeight: 7,
-  maxHeight: 11,
-  padding: 2, // 房间之间的最小间距
+  minWidth: 24,
+  maxWidth: 36,
+  minHeight: 20,
+  maxHeight: 30,
+  padding: 5, // 房间之间的最小间距
 };
 
 /** 走廊宽度 */
-const CORRIDOR_WIDTH = 2;
+export const CORRIDOR_WIDTH = 2;
 
 /** 障碍物密度 (0~1) */
 const OBSTACLE_DENSITY = 0.15;
@@ -74,7 +74,7 @@ function isRoomOverlapping(newRoom: Rectangle, existingRooms: Rectangle[]): bool
 function placeRooms(count: number): Rectangle[] {
   const rooms: Rectangle[] = [];
   const maxAttempts = 1000;
-  const mapSize = 100; // 地图边界
+  const mapSize = 180; // 地图边界
 
   for (let i = 0; i < count; i++) {
     const { width, height } = randomRoomSize();

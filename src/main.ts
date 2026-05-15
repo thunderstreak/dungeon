@@ -6,6 +6,7 @@ import { MainMenuScene } from '@/scenes/MainMenuScene';
 import { CharacterSelectScene } from '@/scenes/CharacterSelectScene';
 import { TownScene } from '@/scenes/TownScene';
 import { DungeonScene } from '@/scenes/DungeonScene';
+import { UIScene } from '@/scenes/UIScene';
 
 // 游戏配置
 const config: Phaser.Types.Core.GameConfig = {
@@ -21,7 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, PreloadScene, MainMenuScene, CharacterSelectScene, TownScene, DungeonScene],
+  scene: [BootScene, PreloadScene, MainMenuScene, CharacterSelectScene, TownScene, DungeonScene, UIScene],
 };
 
 // 创建游戏实例

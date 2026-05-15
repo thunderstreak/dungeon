@@ -16,19 +16,12 @@ export const GAME_VERSION = '1.0.0';
 export const CANVAS_WIDTH = 960;
 export const CANVAS_HEIGHT = 640;
 
-/** 瓦片大小 (像素) */
+/** 瓦片大小 (像素) — 正方形 */
 export const TILE_SIZE = 32;
 
-// ==================== 等距视角配置 ====================
-
-/** 等距瓦片宽度 (像素) */
-export const ISO_TILE_WIDTH = 64;
-
-/** 等距瓦片高度 (像素) */
-export const ISO_TILE_HEIGHT = 32;
-
-/** 等距瓦片宽高比 (2:1) */
-export const ISO_TILE_RATIO = ISO_TILE_WIDTH / ISO_TILE_HEIGHT;
+/** 兼容旧代码 */
+export const ISO_TILE_WIDTH = TILE_SIZE;
+export const ISO_TILE_HEIGHT = TILE_SIZE;
 
 // ==================== 角色常量 ====================
 

@@ -1,9 +1,11 @@
 // 技能系统 - 学习/升级/遗忘、冷却管理、武器精通
 
-import type { Character, SkillSlot, Skill } from '@/config/types';
+import type { Character, SkillSlot } from '@/config/types';
 import { eventBus } from './EventBus';
 import { ALL_SKILLS, WARRIOR_INITIAL_SKILLS, MAGE_INITIAL_SKILLS } from '@/data/skills';
 import type { SkillData } from '@/data/skills';
+import type { CombatEntity, DamageResult } from './BattleSystem';
+import { calcPhysicalDamage, calcMagicDamage, calcTrueDamage, applyDamage } from './BattleSystem';
 
 // ==================== 技能学习 ====================
 
@@ -121,8 +123,13 @@ export function isSkillReady(character: Character, skillId: string): boolean {
   return true;
 }
 
-/** 使用技能（设置冷却、消耗MP） */
-export function useSkill(character: Character, skillId: string): boolean {
+/** 使用技能（设置冷却、消耗MP，可选对目标造成伤害） */
+export function useSkill(
+  character: Character,
+  skillId: string,
+  attacker?: CombatEntity,
+  target?: CombatEntity,
+): boolean {
   if (!isSkillReady(character, skillId)) return false;
 
   const skillSlot = character.skills.find(s => s.skillId === skillId)!;
@@ -138,7 +145,12 @@ export function useSkill(character: Character, skillId: string): boolean {
     skillSlot.cooldownRemaining = skillData.cooldown;
   }
 
-  eventBus.emit('skill:cast', { skillId, targetId: null });
+  // 如果有攻击者和目标，执行技能伤害
+  if (attacker && target && skillData.damage) {
+    executeSkillDamage(attacker, target, skillId, skillSlot.level);
+  }
+
+  eventBus.emit('skill:cast', { skillId, targetId: target?.id ?? null });
   return true;
 }
 
@@ -167,6 +179,77 @@ export function getSkillDamageMultiplier(skillId: string, level: number): number
   if (!skillData?.damage) return 0;
   // 每级+10%基础伤害
   return skillData.damage.baseValue * (1 + (level - 1) * 0.1) / 100;
+}
+
+// ==================== 技能伤害执行 ====================
+
+/** 执行技能伤害计算并应用 */
+export function executeSkillDamage(
+  attacker: CombatEntity,
+  defender: CombatEntity,
+  skillId: string,
+  skillLevel: number,
+): DamageResult | null {
+  const skillData = ALL_SKILLS.find(s => s.id === skillId);
+  if (!skillData?.damage) return null;
+
+  const multiplier = getSkillDamageMultiplier(skillId, skillLevel);
+
+  // 根据缩放属性选择攻击力
+  let effectiveAttack: number;
+  switch (skillData.damage.scalingStat) {
+    case 'intelligence':
+      effectiveAttack = Math.floor(attacker.stats.magicAttack * multiplier * skillData.damage.scalingFactor);
+      break;
+    case 'strength':
+    default:
+      effectiveAttack = Math.floor(attacker.stats.physicalAttack * multiplier * skillData.damage.scalingFactor);
+      break;
+  }
+
+  let result: DamageResult;
+  switch (skillData.damage.type) {
+    case 'magic':
+      result = calcMagicDamage(
+        { magicAttack: effectiveAttack, criticalRate: attacker.stats.criticalRate, criticalDamage: attacker.stats.criticalDamage },
+        { magicDefense: defender.stats.magicDefense, dodgeRate: 0 },
+      );
+      break;
+    case 'true':
+      result = calcTrueDamage(effectiveAttack);
+      break;
+    case 'physical':
+    default:
+      result = calcPhysicalDamage(
+        { physicalAttack: effectiveAttack, criticalRate: attacker.stats.criticalRate, criticalDamage: attacker.stats.criticalDamage },
+        { physicalDefense: defender.stats.physicalDefense, dodgeRate: defender.stats.dodgeRate },
+      );
+      break;
+  }
+
+  // 应用伤害
+  applyDamage(defender, result);
+
+  // 应用技能附带效果（debuff）
+  if (skillData.effects) {
+    for (const effect of skillData.effects) {
+      defender.buffManager.addBuff({
+        id: `skill_${skillId}_${effect.type}`,
+        name: `${skillData.name} - ${effect.type}`,
+        type: 'debuff',
+        debuffType: effect.type as import('@/config/types').DebuffType,
+        duration: effect.duration,
+        maxDuration: effect.duration,
+        value: effect.value,
+        maxStack: 1,
+        source: skillId,
+        icon: skillData.id,
+      });
+    }
+  }
+
+  eventBus.emit('skill:hit', { skillId, targetId: defender.id, damage: result.finalDamage });
+  return result;
 }
 
 // ==================== 武器精通 ====================
