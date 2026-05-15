@@ -169,7 +169,7 @@ export class InventoryPanel extends BasePanel {
         } else {
           text.setColor('#cccccc');
         }
-        countText.setText(slot.count > 1 ? `${slot.count}` : '');
+        countText.setText(slot.item.isStackable && slot.count >= 1 ? `x${slot.count}` : '');
         slotBg.setStrokeStyle(1, 0x555577);
       } else {
         text.setText('');

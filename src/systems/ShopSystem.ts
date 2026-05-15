@@ -89,14 +89,9 @@ export function getItemPrice(itemState: ShopItemState): number {
 /** 检查是否可以购买 */
 export function canBuyItem(
   itemState: ShopItemState,
-  playerLevel: number,
+  _playerLevel: number,
   playerGold: number,
 ): { canBuy: boolean; error?: string } {
-  // 等级检查
-  if (playerLevel < itemState.item.levelReq) {
-    return { canBuy: false, error: `等级不足，需要${itemState.item.levelReq}级` };
-  }
-
   // 金币检查
   const price = getItemPrice(itemState);
   if (playerGold < price) {
@@ -142,9 +137,9 @@ export function getRemainingLimit(itemState: ShopItemState): number {
 
 // ==================== 查询 ====================
 
-/** 获取所有可购买物品 (根据玩家等级筛选) */
-export function getAvailableItems(state: ShopState, playerLevel: number): ShopItemState[] {
-  return state.items.filter(item => playerLevel >= item.item.levelReq);
+/** 获取所有可购买物品 */
+export function getAvailableItems(state: ShopState): ShopItemState[] {
+  return state.items;
 }
 
 /** 获取稀有物品列表 */

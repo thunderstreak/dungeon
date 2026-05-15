@@ -156,7 +156,7 @@ export class Tooltip {
     this.showText(lines.join('\n'), x, y);
   }
 
-  private showText(content: string, x: number, y: number): void {
+  showText(content: string, x: number, y: number): void {
     this.text.setText(content);
     this.text.setFixedSize(0, 0);
 

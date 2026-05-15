@@ -15,24 +15,24 @@ export interface ShopItem {
 
 // ==================== 商人库存 ====================
 
-/** 商人商店库存 (根据玩家等级解锁) */
+/** 商人商店库存 */
 export const MERCHANT_SHOP: ShopItem[] = [
   // 药水
   { itemId: 'potion_hp_small', price: 10, levelReq: 1, dailyLimit: 0, category: 'potion' },
-  { itemId: 'potion_hp_medium', price: 30, levelReq: 10, dailyLimit: 0, category: 'potion' },
-  { itemId: 'potion_hp_large', price: 80, levelReq: 20, dailyLimit: 0, category: 'potion' },
+  { itemId: 'potion_hp_medium', price: 30, levelReq: 1, dailyLimit: 0, category: 'potion' },
+  { itemId: 'potion_hp_large', price: 80, levelReq: 1, dailyLimit: 0, category: 'potion' },
   { itemId: 'potion_mp_small', price: 15, levelReq: 1, dailyLimit: 0, category: 'potion' },
-  { itemId: 'potion_mp_medium', price: 45, levelReq: 10, dailyLimit: 0, category: 'potion' },
-  { itemId: 'potion_mp_large', price: 120, levelReq: 20, dailyLimit: 0, category: 'potion' },
-  { itemId: 'potion_antidote', price: 5, levelReq: 1, dailyLimit: 0, category: 'potion' },
-  { itemId: 'potion_purify', price: 30, levelReq: 15, dailyLimit: 0, category: 'potion' },
+  { itemId: 'potion_mp_medium', price: 45, levelReq: 1, dailyLimit: 0, category: 'potion' },
+  { itemId: 'potion_mp_large', price: 120, levelReq: 1, dailyLimit: 0, category: 'potion' },
+  { itemId: 'potion_cure_poison', price: 5, levelReq: 1, dailyLimit: 0, category: 'potion' },
+  { itemId: 'potion_purify', price: 30, levelReq: 1, dailyLimit: 0, category: 'potion' },
   // 卷轴
-  { itemId: 'potion_teleport', price: 50, levelReq: 10, dailyLimit: 5, category: 'scroll' },
-  { itemId: 'potion_repairs_scroll', price: 100, levelReq: 1, dailyLimit: 10, category: 'scroll' },
-  { itemId: 'potion_full_repair_scroll', price: 300, levelReq: 20, dailyLimit: 5, category: 'scroll' },
+  { itemId: 'potion_teleport', price: 50, levelReq: 1, dailyLimit: 5, category: 'scroll' },
+  { itemId: 'mat_repair_scroll', price: 100, levelReq: 1, dailyLimit: 10, category: 'scroll' },
+  { itemId: 'mat_full_repair_scroll', price: 300, levelReq: 1, dailyLimit: 5, category: 'scroll' },
   // 材料
-  { itemId: 'mat_ore', price: 50, levelReq: 1, dailyLimit: 20, category: 'material' },
-  { itemId: 'mat_refined_iron', price: 200, levelReq: 15, dailyLimit: 10, category: 'material' },
+  { itemId: 'mat_ore_common', price: 50, levelReq: 1, dailyLimit: 20, category: 'material' },
+  { itemId: 'mat_ore_fine', price: 200, levelReq: 1, dailyLimit: 10, category: 'material' },
 ];
 
 /** 出售价格倍率 (购买价 × 此倍率) */
@@ -300,9 +300,9 @@ export function getNpcsByArea(area: TownArea): NPCData[] {
   return ALL_NPCS.filter(n => n.area === area);
 }
 
-/** 获取指定等级可购买的商店物品 */
-export function getAvailableShopItems(playerLevel: number): ShopItem[] {
-  return MERCHANT_SHOP.filter(item => item.levelReq <= playerLevel);
+/** 获取所有商店物品 */
+export function getAvailableShopItems(): ShopItem[] {
+  return MERCHANT_SHOP;
 }
 
 /** NPC总数 */

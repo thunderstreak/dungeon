@@ -28,6 +28,7 @@ import type { UIScene } from './UIScene';
 export class DungeonScene extends Phaser.Scene {
   private player!: Player;
   private monsters: (Monster | Boss)[] = [];
+  private roomMonsters = new Map<string, (Monster | Boss)[]>();
   private roomGenerator!: RoomGenerator;
   private currentRoom!: Room;
   private pity = new PityCounter();
@@ -37,6 +38,7 @@ export class DungeonScene extends Phaser.Scene {
   private floor = 1;
   private dungeonState!: DungeonState;
   private floorWalkability!: FloorWalkability;
+  private roomsEntered = new Set<string>();
 
   constructor() {
     super({ key: 'DungeonScene' });
@@ -47,6 +49,8 @@ export class DungeonScene extends Phaser.Scene {
     this.roomCleared = false;
     this.playerDead = false;
     this.attackCooldown = 0;
+    this.roomsEntered = new Set();
+    this.roomMonsters = new Map();
     this.dungeonState = createDungeonState();
 
     const character = gameState.getCharacter();
@@ -81,8 +85,14 @@ export class DungeonScene extends Phaser.Scene {
     this.currentRoom = startRoom;
     this.currentRoom.isEntered = true;
 
-    // 在当前房间生成怪物
-    this.spawnMonstersInCurrentRoom();
+    // 为所有房间生成怪物
+    for (const room of rooms) {
+      if (room.type === 'boss') continue; // Boss房间不生成普通怪物
+      this.spawnMonstersForRoom(room);
+    }
+
+    // 设置当前房间的怪物列表
+    this.monsters = this.roomMonsters.get(this.currentRoom.id) ?? [];
 
     // 创建玩家（在当前房间中心）
     const playerGridX = this.currentRoom.roomData.position.x + this.currentRoom.roomData.position.width / 2;
@@ -174,6 +184,9 @@ export class DungeonScene extends Phaser.Scene {
 
     this.player.update(delta);
 
+    // 检测房间切换
+    this.checkRoomTransition();
+
     // 更新怪物AI
     const playerGrid = this.player.getGridPosition();
     for (const monster of this.monsters) {
@@ -213,13 +226,13 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
-  /** 在当前房间生成怪物 */
-  private spawnMonstersInCurrentRoom(): void {
-    const spawnPositions = this.currentRoom.getMonsterSpawnPositions();
+  /** 在指定房间生成怪物 */
+  private spawnMonstersForRoom(room: Room): void {
+    const spawnPositions = room.getMonsterSpawnPositions();
     const density = 0.08;
     const floorMultiplier = getFloorMultiplier(this.floor, this.dungeonState.isAbyss);
 
-    this.monsters = spawnMonstersInRoom(
+    const roomMonsters = spawnMonstersInRoom(
       this,
       spawnPositions,
       this.floor,
@@ -227,11 +240,50 @@ export class DungeonScene extends Phaser.Scene {
       density,
     );
 
-    this.applyMonsterWalkability();
+    this.roomMonsters.set(room.id, roomMonsters);
 
     // 设置死亡回调
-    for (const monster of this.monsters) {
+    for (const monster of roomMonsters) {
       monster.onDeath = (m: Monster | Boss) => this.onMonsterDeath(m);
+    }
+  }
+
+  /** 检测玩家是否进入了新房间 */
+  private checkRoomTransition(): void {
+    const pg = this.player.getGridPosition();
+    for (const room of this.roomGenerator.getAllRooms()) {
+      const pos = room.roomData.position;
+      if (pg.x >= pos.x && pg.x < pos.x + pos.width
+        && pg.y >= pos.y && pg.y < pos.y + pos.height) {
+        if (room.id !== this.currentRoom.id) {
+          this.enterRoom(room);
+        }
+        return;
+      }
+    }
+  }
+
+  /** 进入新房间 */
+  private enterRoom(room: Room): void {
+    // 始终切换当前房间和怪物列表
+    this.currentRoom = room;
+    this.monsters = this.roomMonsters.get(room.id) ?? [];
+
+    // 如果这个房间之前已经触发过通关事件，不再重复触发
+    if (this.roomsEntered.has(room.id)) {
+      this.roomCleared = true;
+      return;
+    }
+
+    if (room.isCleared) {
+      // 已通关的房间，直接标记为已处理，不触发通关事件
+      this.roomsEntered.add(room.id);
+      this.roomCleared = true;
+    } else {
+      // 未通关的房间
+      room.isEntered = true;
+      this.roomCleared = false;
+      this.applyMonsterWalkability();
     }
   }
 
@@ -292,6 +344,7 @@ export class DungeonScene extends Phaser.Scene {
 
   /** 房间通关 */
   private onRoomCleared(): void {
+    this.roomsEntered.add(this.currentRoom.id);
     showNotification(this, '房间已清除!', '#44ff44');
     this.currentRoom.markCleared();
 
@@ -370,13 +423,19 @@ export class DungeonScene extends Phaser.Scene {
       cleared: r.isCleared,
     }));
 
-    const monsters = this.monsters
-      .filter(monster => !monster.isDead)
-      .map(monster => ({
-        x: monster.gridX,
-        y: monster.gridY,
-        isBoss: monster instanceof Boss,
-      }));
+    // 收集所有房间的怪物（小地图显示全层怪物位置）
+    const monsters: MiniMapMonster[] = [];
+    for (const roomMonsters of this.roomMonsters.values()) {
+      for (const monster of roomMonsters) {
+        if (!monster.isDead) {
+          monsters.push({
+            x: monster.gridX,
+            y: monster.gridY,
+            isBoss: monster instanceof Boss,
+          });
+        }
+      }
+    }
 
     return { rooms, playerGrid: this.player.getGridPosition(), monsters };
   }
@@ -404,7 +463,11 @@ export class DungeonScene extends Phaser.Scene {
       return !this.monsters.some(m => m !== boss && !m.isDead && m.gridX === gx && m.gridY === gy);
     };
     boss.setTarget(this.player.combatEntity);
-    this.monsters = [boss];
+
+    // 使用roomMonsters跟踪Boss
+    const bossMonsters = [boss];
+    this.roomMonsters.set(this.currentRoom.id, bossMonsters);
+    this.monsters = bossMonsters;
     this.roomCleared = false;
 
     showNotification(this, `Boss出现: ${boss.bossData.name}!`, '#ff4444');
