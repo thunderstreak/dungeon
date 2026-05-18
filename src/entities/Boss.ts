@@ -78,7 +78,7 @@ export class Boss {
 
     // AI参数
     this.aggroRangePx = bossData.aggroRange * TILE_SIZE;
-    this.attackCooldown = 100000 / bossData.stats.attackSpeed;
+    this.attackCooldown = 160000 / bossData.stats.attackSpeed;
     this.moveInterval = getBossMoveInterval(bossData.stats.moveSpeed);
 
     // 屏幕坐标
@@ -255,31 +255,56 @@ export class Boss {
 
     this.lastSkillTime = time;
 
-    const direction = {
-      x: Math.sign(this.lastPlayerScreenX - this.container.x),
-      y: Math.sign(this.lastPlayerScreenY - this.container.y),
-    };
+    const skill = this.phaseSkills[Math.floor(Math.random() * this.phaseSkills.length)];
+    if (!skill.damage) return;
 
-    playAttackAnimation(this.scene, this.container, 'boss', direction, () => {
-      const skill = this.phaseSkills[Math.floor(Math.random() * this.phaseSkills.length)];
+    const isMagic = skill.damage.type === 'magic';
 
-      if (!skill.damage) return;
-      let result;
-      if (skill.damage.type === 'magic') {
-        result = calcMagicDamage(this.combatEntity.stats, this.targetEntity!.stats);
-      } else {
-        result = calcPhysicalDamage(this.combatEntity.stats, this.targetEntity!.stats);
-      }
+    if (isMagic) {
+      // 魔法技能：发射弹道
+      this.fireProjectile(this.lastPlayerScreenX, this.lastPlayerScreenY, () => {
+        const result = calcMagicDamage(this.combatEntity.stats, this.targetEntity!.stats);
+        applyDamage(this.targetEntity!, result);
+        showDamagePopup(this.scene, this.lastPlayerScreenX, this.lastPlayerScreenY - 30, result.finalDamage, result.isCritical ? 'critical' : 'normal');
+      });
+    } else {
+      // 物理技能：近战动画
+      const direction = {
+        x: Math.sign(this.lastPlayerScreenX - this.container.x),
+        y: Math.sign(this.lastPlayerScreenY - this.container.y),
+      };
+      playAttackAnimation(this.scene, this.container, 'boss', direction, () => {
+        const result = calcPhysicalDamage(this.combatEntity.stats, this.targetEntity!.stats);
+        applyDamage(this.targetEntity!, result);
+        showDamagePopup(this.scene, this.lastPlayerScreenX, this.lastPlayerScreenY - 30, result.finalDamage, result.isCritical ? 'critical' : 'normal');
+      });
+    }
+  }
 
-      applyDamage(this.targetEntity!, result);
+  /** 发射弹道（Boss魔法技能用） */
+  private fireProjectile(targetX: number, targetY: number, onHit: () => void): void {
+    const radius = 5;
+    const speed = 300;
 
-      showDamagePopup(
-        this.scene,
-        this.lastPlayerScreenX,
-        this.lastPlayerScreenY - 30,
-        result.finalDamage,
-        result.isCritical ? 'critical' : 'normal',
-      );
+    const startX = this.container.x;
+    const startY = this.container.y;
+
+    const projectile = this.scene.add.circle(startX, startY, radius, 0xaa44ff);
+    projectile.setDepth(2000);
+
+    const distance = Phaser.Math.Distance.Between(startX, startY, targetX, targetY);
+    const duration = (distance / speed) * 1000;
+
+    this.scene.tweens.add({
+      targets: projectile,
+      x: targetX,
+      y: targetY,
+      duration: Math.max(100, duration),
+      ease: 'Linear',
+      onComplete: () => {
+        projectile.destroy();
+        onHit();
+      },
     });
   }
 

@@ -96,7 +96,7 @@ export class UIScene extends Phaser.Scene {
 
     // 技能栏和物品快捷栏
     this.skillBar = new SkillBar(this);
-    this.hotBar = new HotBar(this);
+    this.hotBar = new HotBar(this, (index) => this.handleItemKey(index));
 
     // 角色面板
     this.characterPanel = new CharacterPanel(this);

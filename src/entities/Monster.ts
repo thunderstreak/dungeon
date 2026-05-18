@@ -164,7 +164,7 @@ export class Monster {
     this.aiConfig = AI_CONFIG[monsterData.type] ?? AI_CONFIG.melee;
     this.aggroRangePx = monsterData.aggroRange * TILE_SIZE;
     this.attackRangePx = this.aiConfig.attackRange;
-    this.attackCooldown = 100000 / monsterData.stats.attackSpeed;
+    this.attackCooldown = 160000 / monsterData.stats.attackSpeed;
     this.moveInterval = getMonsterMoveInterval(monsterData.stats.moveSpeed);
     this.aggroMeter = getAggroDecayConfig(false).startAggro;
 
@@ -428,35 +428,34 @@ export class Monster {
   performAttack(target: CombatEntity, targetX: number, targetY: number): void {
     this.lastAttackTime = this.scene.time.now;
 
-    const direction = {
-      x: Math.sign(targetX - this.container.x),
-      y: Math.sign(targetY - this.container.y),
-    };
+    const isRanged = this.monsterData.type === 'ranged' || this.monsterData.type === 'caster';
 
     // 精灵怪物播放攻击动画
     if (this.sprite && this.spriteConfig) {
       this.playOnceAnim(this.spriteConfig.attackKey);
     }
 
-    playAttackAnimation(this.scene, this.container, 'monster', direction, () => {
-      let result;
-      if (this.monsterData.type === 'ranged' || this.monsterData.type === 'caster') {
-        result = calcMagicDamage(this.combatEntity.stats, target.stats);
-      } else {
-        result = calcPhysicalDamage(this.combatEntity.stats, target.stats);
-      }
-
-      applyDamage(target, result);
-      showDamagePopup(
-        this.scene,
-        targetX,
-        targetY - 20,
-        result.finalDamage,
-        result.isCritical ? 'critical' : 'normal',
-      );
-
-      this.onAttack?.(this, target.id);
-    });
+    if (isRanged) {
+      // 远程/施法怪物：发射弹道
+      this.fireProjectile(targetX, targetY, () => {
+        const result = calcMagicDamage(this.combatEntity.stats, target.stats);
+        applyDamage(target, result);
+        showDamagePopup(this.scene, targetX, targetY - 20, result.finalDamage, result.isCritical ? 'critical' : 'normal');
+        this.onAttack?.(this, target.id);
+      });
+    } else {
+      // 近战怪物：瞬发攻击动画
+      const direction = {
+        x: Math.sign(targetX - this.container.x),
+        y: Math.sign(targetY - this.container.y),
+      };
+      playAttackAnimation(this.scene, this.container, 'monster', direction, () => {
+        const result = calcPhysicalDamage(this.combatEntity.stats, target.stats);
+        applyDamage(target, result);
+        showDamagePopup(this.scene, targetX, targetY - 20, result.finalDamage, result.isCritical ? 'critical' : 'normal');
+        this.onAttack?.(this, target.id);
+      });
+    }
   }
 
   /** 受伤（skipHpReduce=true 时只更新视觉效果，HP已由外部扣减） */
@@ -479,6 +478,34 @@ export class Monster {
     if (this.combatEntity.hp <= 0) {
       this.die();
     }
+  }
+
+  /** 发射弹道（远程/施法怪物攻击用） */
+  private fireProjectile(targetX: number, targetY: number, onHit: () => void): void {
+    const color = this.monsterData.type === 'caster' ? 0xaa44ff : 0xff6622;
+    const radius = 3;
+    const speed = 350;
+
+    const startX = this.container.x;
+    const startY = this.container.y;
+
+    const projectile = this.scene.add.circle(startX, startY, radius, color);
+    projectile.setDepth(2000);
+
+    const distance = Phaser.Math.Distance.Between(startX, startY, targetX, targetY);
+    const duration = (distance / speed) * 1000;
+
+    this.scene.tweens.add({
+      targets: projectile,
+      x: targetX,
+      y: targetY,
+      duration: Math.max(100, duration),
+      ease: 'Linear',
+      onComplete: () => {
+        projectile.destroy();
+        onHit();
+      },
+    });
   }
 
   /** 高亮显示（被选中目标） */

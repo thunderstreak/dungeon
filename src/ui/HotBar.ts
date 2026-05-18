@@ -12,9 +12,11 @@ export class HotBar {
   private nameTexts: Phaser.GameObjects.Text[] = [];
   private countTexts: Phaser.GameObjects.Text[] = [];
   private slotSize = BOTTOM_HUD_LAYOUT.slotSize;
+  private onClick?: (index: number) => void;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, onClick?: (index: number) => void) {
     this.scene = scene;
+    this.onClick = onClick;
     this.container = scene.add.container(0, 0);
     this.container.setDepth(3000);
     this.container.setScrollFactor(0);
@@ -27,6 +29,8 @@ export class HotBar {
 
       const bg = this.scene.add.rectangle(0, 0, this.slotSize, this.slotSize, 0x17131b, 0.95);
       bg.setStrokeStyle(2, 0x7b552a);
+      bg.setInteractive({ useHandCursor: true });
+      bg.on('pointerdown', () => this.onClick?.(i));
       slotContainer.add(bg);
 
       const inner = this.scene.add.rectangle(0, 0, this.slotSize - 6, this.slotSize - 6, 0x2b2118, 0.75);
