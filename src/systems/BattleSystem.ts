@@ -109,10 +109,10 @@ export function createCombatEntityFromCharacter(character: Character): CombatEnt
   return {
     id: character.id,
     name: character.name,
-    hp: character.stats.hp,
-    maxHp: character.stats.hp,
-    mp: character.stats.mp,
-    maxMp: character.stats.mp,
+    hp: character.stats.maxHp,
+    maxHp: character.stats.maxHp,
+    mp: character.stats.maxMp,
+    maxMp: character.stats.maxMp,
     stats: {
       physicalAttack: character.stats.physicalAttack,
       magicAttack: character.stats.magicAttack,

@@ -89,7 +89,7 @@ const FLOOR_1_MONSTERS: MonsterDefinition[] = [
     lootTable: [],
     expReward: 10,
     goldReward: [5, 10],
-    sprite: 'monster_skeleton',
+    sprite: 'octopus',
   },
   {
     id: 'monster_bat',
@@ -112,7 +112,7 @@ const FLOOR_1_MONSTERS: MonsterDefinition[] = [
     lootTable: [],
     expReward: 8,
     goldReward: [3, 8],
-    sprite: 'monster_bat',
+    sprite: 'rat_gray',
   },
   {
     id: 'monster_spider',
@@ -135,7 +135,7 @@ const FLOOR_1_MONSTERS: MonsterDefinition[] = [
     lootTable: [],
     expReward: 12,
     goldReward: [5, 12],
-    sprite: 'monster_spider',
+    sprite: 'rat_brown',
   },
 ];
 
@@ -163,7 +163,7 @@ const FLOOR_2_MONSTERS: MonsterDefinition[] = [
     lootTable: [],
     expReward: 15,
     goldReward: [8, 15],
-    sprite: 'monster_shadow_wolf',
+    sprite: 'rat_white',
   },
   {
     id: 'monster_gargoyle',

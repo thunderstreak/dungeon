@@ -12,6 +12,64 @@ import { playAttackAnimation } from '@/ui/AttackAnimation';
 /** AI状态 */
 type MonsterAIState = 'idle' | 'patrol' | 'chase' | 'attack' | 'flee' | 'dead';
 
+/** 精灵动画配置 */
+interface SpriteAnimConfig {
+  prefix: string;       // 动画键前缀，如 'octopus_' 或 'rat_brown_'
+  idleKey: string;
+  walkKey: string;
+  runKey?: string;
+  attackKey: string;
+  hurtKey: string;
+  deathKey: string;
+  standKey?: string;
+  scale: number;
+}
+
+const SPRITE_CONFIGS: Record<string, SpriteAnimConfig> = {
+  octopus: {
+    prefix: 'octopus_',
+    idleKey: 'octopus_idle',
+    walkKey: 'octopus_walk',
+    attackKey: 'octopus_attack',
+    hurtKey: 'octopus_dmg',
+    deathKey: 'octopus_death_1',
+    scale: 0.75,
+  },
+  rat_brown: {
+    prefix: 'rat_brown_',
+    idleKey: 'rat_brown_idle',
+    walkKey: 'rat_brown_walk',
+    runKey: 'rat_brown_run',
+    attackKey: 'rat_brown_attack',
+    hurtKey: 'rat_brown_hurt',
+    deathKey: 'rat_brown_dead',
+    standKey: 'rat_brown_stand',
+    scale: 0.75,
+  },
+  rat_gray: {
+    prefix: 'rat_gray_',
+    idleKey: 'rat_gray_idle',
+    walkKey: 'rat_gray_walk',
+    runKey: 'rat_gray_run',
+    attackKey: 'rat_gray_attack',
+    hurtKey: 'rat_gray_hurt',
+    deathKey: 'rat_gray_dead',
+    standKey: 'rat_gray_stand',
+    scale: 0.75,
+  },
+  rat_white: {
+    prefix: 'rat_white_',
+    idleKey: 'rat_white_idle',
+    walkKey: 'rat_white_walk',
+    runKey: 'rat_white_run',
+    attackKey: 'rat_white_attack',
+    hurtKey: 'rat_white_hurt',
+    deathKey: 'rat_white_dead',
+    standKey: 'rat_white_stand',
+    scale: 0.75,
+  },
+};
+
 /** 怪物类型对应的AI行为 */
 const AI_CONFIG: Record<string, {
   aggroMultiplier: number;
@@ -25,7 +83,7 @@ const AI_CONFIG: Record<string, {
   support: { aggroMultiplier: 0.5, attackRange: 180, prefersMelee: false, fleeThreshold: 0.4 },
 };
 
-const BASE_MONSTER_MOVE_INTERVAL = 220;
+const BASE_MONSTER_MOVE_INTERVAL = 440;
 
 export function getMonsterMoveInterval(moveSpeedPercent: number): number {
   const clampedSpeed = Math.max(60, moveSpeedPercent);
@@ -44,10 +102,13 @@ export class Monster {
   readonly combatEntity: CombatEntity;
 
   container: Phaser.GameObjects.Container;
-  private bodyRect: Phaser.GameObjects.Rectangle;
+  private bodyRect!: Phaser.GameObjects.Rectangle;
   private hpBarBg: Phaser.GameObjects.Rectangle;
   private hpBarFill: Phaser.GameObjects.Rectangle;
   nameText: Phaser.GameObjects.Text;
+  private sprite: Phaser.GameObjects.Sprite | null = null;
+  private spriteConfig: SpriteAnimConfig | null = null;
+  private currentAnimKey = '';
 
   aiState: MonsterAIState = 'idle';
   isDead = false;
@@ -55,6 +116,13 @@ export class Monster {
   // 格子坐标
   gridX: number;
   gridY: number;
+
+  // 平滑移动
+  private visualX: number;
+  private visualY: number;
+  private targetVisualX = 0;
+  private targetVisualY = 0;
+  private readonly LERP_SPEED = 0.18;
 
   // AI参数
   private aiConfig;
@@ -102,17 +170,49 @@ export class Monster {
 
     // 屏幕坐标
     const pos = isoToScreen(gridX, gridY);
+    this.visualX = pos.screenX;
+    this.visualY = pos.screenY;
+    this.targetVisualX = pos.screenX;
+    this.targetVisualY = pos.screenY;
 
     // 容器
     this.container = scene.add.container(pos.screenX, pos.screenY);
     this.container.setDepth(getDepthSort(gridY));
 
-    // 怪物占位正方形（红色）
     const size = TILE_SIZE - 6;
-    this.bodyRect = scene.add.rectangle(0, 0, size, size, 0xcc3333);
-    this.bodyRect.setOrigin(0.5, 0.5);
-    this.bodyRect.setStrokeStyle(2, 0xff5555);
-    this.container.add(this.bodyRect);
+    const cfg = SPRITE_CONFIGS[monsterData.sprite];
+    const hasSprite = cfg && scene.textures.exists(cfg.idleKey);
+
+    if (hasSprite && cfg) {
+      this.spriteConfig = cfg;
+      this.sprite = scene.add.sprite(0, 0, cfg.idleKey);
+      this.sprite.setOrigin(0.5, 0.5);
+      this.sprite.setScale(cfg.scale);
+      this.container.add(this.sprite);
+      this.sprite.play(cfg.idleKey);
+      this.currentAnimKey = cfg.idleKey;
+
+      // 点击交互在 sprite 上
+      this.sprite.setInteractive({ useHandCursor: true });
+      this.sprite.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.leftButtonDown()) {
+          scene.events.emit('monster:click', this);
+        }
+      });
+    } else {
+      // 矩形占位怪物
+      this.bodyRect = scene.add.rectangle(0, 0, size, size, 0xcc3333);
+      this.bodyRect.setOrigin(0.5, 0.5);
+      this.bodyRect.setStrokeStyle(2, 0xff5555);
+      this.container.add(this.bodyRect);
+
+      this.bodyRect.setInteractive({ useHandCursor: true });
+      this.bodyRect.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.leftButtonDown()) {
+          scene.events.emit('monster:click', this);
+        }
+      });
+    }
 
     // 名字
     this.nameText = scene.add.text(0, -size / 2 - 12, monsterData.name, {
@@ -132,14 +232,6 @@ export class Monster {
     this.hpBarFill.setOrigin(0, 0.5);
     this.hpBarFill.setPosition(-(TILE_SIZE - 8) / 2, -size / 2 - 6);
     this.container.add(this.hpBarFill);
-
-    // 可点击
-    this.bodyRect.setInteractive({ useHandCursor: true });
-    this.bodyRect.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.leftButtonDown()) {
-        scene.events.emit('monster:click', this);
-      }
-    });
 
     // 生成巡逻路径（周围4格）
     this.generatePatrol();
@@ -173,6 +265,14 @@ export class Monster {
         this.updateFlee(playerScreen);
         break;
     }
+
+    // 平滑插值视觉位置
+    this.visualX += (this.targetVisualX - this.visualX) * this.LERP_SPEED;
+    this.visualY += (this.targetVisualY - this.visualY) * this.LERP_SPEED;
+    this.container.setPosition(this.visualX, this.visualY);
+
+    // 同步动画
+    this.syncAnim();
   }
 
   private updateIdle(dist: number, time: number): void {
@@ -279,7 +379,8 @@ export class Monster {
     this.gridY = newY;
 
     const pos = isoToScreen(newX, newY);
-    this.container.setPosition(pos.screenX, pos.screenY);
+    this.targetVisualX = pos.screenX;
+    this.targetVisualY = pos.screenY;
     this.container.setDepth(getDepthSort(newY));
     return true;
   }
@@ -332,6 +433,11 @@ export class Monster {
       y: Math.sign(targetY - this.container.y),
     };
 
+    // 精灵怪物播放攻击动画
+    if (this.sprite && this.spriteConfig) {
+      this.playOnceAnim(this.spriteConfig.attackKey);
+    }
+
     playAttackAnimation(this.scene, this.container, 'monster', direction, () => {
       let result;
       if (this.monsterData.type === 'ranged' || this.monsterData.type === 'caster') {
@@ -353,11 +459,13 @@ export class Monster {
     });
   }
 
-  /** 受伤 */
-  takeDamage(damage: number, isCritical: boolean): void {
+  /** 受伤（skipHpReduce=true 时只更新视觉效果，HP已由外部扣减） */
+  takeDamage(damage: number, isCritical: boolean, skipHpReduce = false): void {
     if (this.isDead) return;
 
-    this.combatEntity.hp = Math.max(0, this.combatEntity.hp - damage);
+    if (!skipHpReduce) {
+      this.combatEntity.hp = Math.max(0, this.combatEntity.hp - damage);
+    }
     this.updateHpBar();
 
     showDamagePopup(this.scene, this.container.x, this.container.y - 20, damage, isCritical ? 'critical' : 'normal');
@@ -375,24 +483,36 @@ export class Monster {
 
   /** 高亮显示（被选中目标） */
   highlight(): void {
-    this.bodyRect.setStrokeStyle(3, 0xffff00);
+    if (this.sprite) {
+      this.sprite.setTint(0xffff88);
+    } else {
+      this.bodyRect.setStrokeStyle(3, 0xffff00);
+    }
     this.hpBarBg.setVisible(true);
     this.hpBarFill.setVisible(true);
   }
 
   /** 取消高亮 */
   unhighlight(): void {
-    this.bodyRect.setStrokeStyle(2, 0xff5555);
+    if (this.sprite) {
+      this.sprite.clearTint();
+    } else {
+      this.bodyRect.setStrokeStyle(2, 0xff5555);
+    }
   }
 
   /** 受击闪白 */
   flashHit(): void {
-    this.bodyRect.setFillStyle(0xffffff);
-    this.scene.time.delayedCall(80, () => {
-      if (!this.isDead) {
-        this.bodyRect.setFillStyle(0xcc3333);
-      }
-    });
+    if (this.sprite && this.spriteConfig) {
+      this.playOnceAnim(this.spriteConfig.hurtKey);
+    } else {
+      this.bodyRect.setFillStyle(0xffffff);
+      this.scene.time.delayedCall(80, () => {
+        if (!this.isDead) {
+          this.bodyRect.setFillStyle(0xcc3333);
+        }
+      });
+    }
   }
 
   /** 更新HP条 */
@@ -402,18 +522,74 @@ export class Monster {
   }
 
   /** 死亡 */
-  private die(): void {
+  die(): void {
     this.isDead = true;
     this.aiState = 'dead';
 
-    this.scene.tweens.add({
-      targets: this.container,
-      alpha: 0,
-      duration: 500,
-      onComplete: () => {
+    if (this.sprite && this.spriteConfig) {
+      // 播放死亡动画，动画结束后销毁
+      this.sprite.play(this.spriteConfig.deathKey);
+      this.sprite.once('animationcomplete', () => {
         this.onDeath?.(this);
         this.container.destroy(true);
-      },
+      });
+      // 兜底：如果动画没触发complete（如时长问题），500ms后也销毁
+      this.scene.time.delayedCall(1500, () => {
+        if (this.container.active) {
+          this.onDeath?.(this);
+          this.container.destroy(true);
+        }
+      });
+    } else {
+      this.scene.tweens.add({
+        targets: this.container,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => {
+          this.onDeath?.(this);
+          this.container.destroy(true);
+        },
+      });
+    }
+  }
+
+  /** 根据AI状态同步动画 */
+  private syncAnim(): void {
+    if (!this.sprite || !this.spriteConfig) return;
+
+    let targetKey: string;
+    switch (this.aiState) {
+      case 'chase':
+        targetKey = this.spriteConfig.runKey ?? this.spriteConfig.walkKey;
+        break;
+      case 'patrol':
+        targetKey = this.spriteConfig.walkKey;
+        break;
+      case 'attack':
+        return;
+      case 'dead':
+        return;
+      default:
+        targetKey = this.spriteConfig.idleKey;
+        break;
+    }
+
+    if (this.currentAnimKey !== targetKey) {
+      this.currentAnimKey = targetKey;
+      this.sprite.play(targetKey);
+    }
+  }
+
+  /** 播放一次性动画（攻击/受伤） */
+  private playOnceAnim(key: string): void {
+    if (!this.sprite) return;
+    this.currentAnimKey = key;
+    this.sprite.play(key);
+    this.sprite.once('animationcomplete', () => {
+      if (!this.isDead) {
+        this.currentAnimKey = '';
+        this.syncAnim();
+      }
     });
   }
 

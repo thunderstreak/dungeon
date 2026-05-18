@@ -1,6 +1,6 @@
 // 背包系统 - 物品管理、堆叠、金币
 
-import type { Character, Inventory, InventorySlot, InventoryCategory, Item } from '@/config/types';
+import type { Character, Equipment, Inventory, InventorySlot, InventoryCategory, Item } from '@/config/types';
 import { MAX_POTION_STACK } from '@/config/constants';
 import { eventBus } from './EventBus';
 
@@ -68,9 +68,9 @@ export function addItem(character: Character, item: Item, count: number): number
 
 /**
  * 向背包添加装备（装备不可堆叠）
- * 装备以Item形式存储，实际装备数据通过itemId关联
+ * 支持传入 Equipment 或 Item 对象
  */
-export function addEquipment(character: Character, equipmentItem: Item): boolean {
+export function addEquipment(character: Character, equipmentOrItem: Equipment | Item): boolean {
   const slots = character.inventory.categories.equipment;
   const emptySlot = slots.find(s => s.item === null);
   if (!emptySlot) {
@@ -78,9 +78,25 @@ export function addEquipment(character: Character, equipmentItem: Item): boolean
     return false;
   }
 
-  emptySlot.item = equipmentItem;
+  // 如果传入的是 Equipment 对象，创建对应的 Item 并存储完整数据
+  if ('stats' in equipmentOrItem) {
+    const equip = equipmentOrItem as Equipment;
+    emptySlot.item = {
+      id: equip.id,
+      name: equip.name,
+      type: 'equipment',
+      icon: equip.icon,
+      description: `${equip.rarity} ${equip.slot}`,
+      isStackable: false,
+      maxStack: 1,
+    };
+    emptySlot.equipmentData = equip;
+  } else {
+    emptySlot.item = equipmentOrItem as Item;
+  }
+
   emptySlot.count = 1;
-  eventBus.emit('inventory:add', { itemId: equipmentItem.id, count: 1 });
+  eventBus.emit('inventory:add', { itemId: emptySlot.item.id, count: 1 });
   return true;
 }
 

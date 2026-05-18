@@ -3,7 +3,11 @@
 import Phaser from 'phaser';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config';
 import { BasePanel } from './BasePanel';
-import type { Character, InventoryCategory, InventorySlot } from '@/config/types';
+import type { Character, Equipment, InventoryCategory, InventorySlot } from '@/config/types';
+import { getEquipmentById } from '@/data/equipment';
+import { equipItem } from '@/systems/EquipmentSystem';
+import { removeItem, addEquipment } from '@/systems/InventorySystem';
+import { gameState } from '@/state/GameState';
 
 const CATEGORIES: InventoryCategory[] = ['equipment', 'consumable', 'material', 'other'];
 const CATEGORY_NAMES: Record<InventoryCategory, string> = {
@@ -35,6 +39,7 @@ export class InventoryPanel extends BasePanel {
     const panelH = 350;
     const px = CANVAS_WIDTH / 2 - panelW / 2;
     const py = CANVAS_HEIGHT / 2 - panelH / 2;
+    const cx = CANVAS_WIDTH / 2;
 
     // 面板背景
     const bg = this.scene.add.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, panelW, panelH, 0x1a1a2e, 0.95);
@@ -48,8 +53,12 @@ export class InventoryPanel extends BasePanel {
     this.container.add(title);
 
     // 分类标签
+    const tabW = 70;
+    const tabGap = 10;
+    const totalTabW = CATEGORIES.length * tabW + (CATEGORIES.length - 1) * tabGap;
+    const tabStartX = cx - totalTabW / 2 + tabW / 2;
     CATEGORIES.forEach((cat, i) => {
-      const btnX = px + 60 + i * 80;
+      const btnX = tabStartX + i * (tabW + tabGap);
       const btnY = py + 50;
       const isSelected = cat === this.currentCategory;
 
@@ -72,7 +81,8 @@ export class InventoryPanel extends BasePanel {
     const cols = 5;
     const slotSize = 48;
     const gap = 4;
-    const startX = px + 30;
+    const gridW = cols * slotSize + (cols - 1) * gap;
+    const startX = px + (panelW - gridW) / 2;
     const startY = py + 80;
 
     for (let i = 0; i < this.itemCount; i++) {
@@ -94,8 +104,23 @@ export class InventoryPanel extends BasePanel {
         if (slot?.item) {
           const tooltip = (this.scene as any).tooltip;
           if (tooltip) {
-            if ('stats' in slot.item) {
-              tooltip.showEquipment(slot.item as any, cx, cy);
+            if (slot.item.type === 'equipment') {
+              let equip = slot.equipmentData;
+              if (!equip) {
+                const template = getEquipmentById(slot.item.id);
+                if (template) {
+                  equip = {
+                    ...template,
+                    enhancementLevel: 0,
+                    durability: template.maxDurability,
+                  } as Equipment;
+                }
+              }
+              if (equip) {
+                tooltip.showEquipment(equip, cx, cy);
+              } else {
+                tooltip.showItem(slot.item, slot.count, cx, cy);
+              }
             } else {
               tooltip.showItem(slot.item, slot.count, cx, cy);
             }
@@ -104,6 +129,38 @@ export class InventoryPanel extends BasePanel {
       });
       slotBg.on('pointerout', () => {
         (this.scene as any).tooltip?.hide();
+      });
+      // 点击穿戴装备
+      slotBg.on('pointerdown', () => {
+        const slot = this.slots[idx];
+        if (!slot?.item || slot.item.type !== 'equipment') return;
+
+        const character = gameState.getCharacter();
+        if (!character) return;
+
+        let equipment = slot.equipmentData;
+        if (!equipment) {
+          const template = getEquipmentById(slot.item.id);
+          if (template) {
+            equipment = {
+              ...template,
+              enhancementLevel: 0,
+              durability: template.maxDurability,
+            } as Equipment;
+          }
+        }
+        if (!equipment) return;
+
+        const result = equipItem(character, equipment, equipment.slot);
+        if (result.success) {
+          removeItem(character, slot.item.id, 1);
+          if (result.unequipped) {
+            addEquipment(character, result.unequipped);
+          }
+          this.refreshSlots();
+          const uiScene = this.scene.scene.get('UIScene') as any;
+          uiScene?.equipmentPanel?.update(character);
+        }
       });
 
       this.container.add(slotBg);
@@ -138,6 +195,11 @@ export class InventoryPanel extends BasePanel {
     this.container.add(closeBtn);
   }
 
+  show(): void {
+    super.show();
+    this.refreshSlots();
+  }
+
   private switchCategory(cat: InventoryCategory): void {
     this.currentCategory = cat;
     CATEGORIES.forEach((c, i) => {
@@ -164,8 +226,8 @@ export class InventoryPanel extends BasePanel {
         const name = slot.item.name.length > 4 ? slot.item.name.slice(0, 4) + '..' : slot.item.name;
         text.setText(name);
         // 装备按稀有度着色
-        if ('rarity' in slot.item) {
-          text.setColor(RARITY_COLORS[(slot.item as any).rarity] ?? '#cccccc');
+        if (slot.item.type === 'equipment' && slot.equipmentData) {
+          text.setColor(RARITY_COLORS[slot.equipmentData.rarity] ?? '#cccccc');
         } else {
           text.setColor('#cccccc');
         }
@@ -184,6 +246,3 @@ export class InventoryPanel extends BasePanel {
     this.refreshSlots();
   }
 }
-
-// 需要导入 gameState
-import { gameState } from '@/state/GameState';

@@ -25,7 +25,8 @@ import { SkillPanel } from '@/ui/SkillPanel';
 import { DialogBox } from '@/ui/DialogBox';
 import { ConfirmDialog } from '@/ui/ConfirmDialog';
 import { Tooltip } from '@/ui/Tooltip';
-import { useSkill, updateCooldowns } from '@/systems/SkillSystem';
+import { SettingsPanel } from '@/ui/SettingsPanel';
+import { updateCooldowns } from '@/systems/SkillSystem';
 import { usePotion } from '@/systems/ItemSystem';
 import { Monster } from '@/entities/Monster';
 import { Boss } from '@/entities/Boss';
@@ -55,6 +56,7 @@ export class UIScene extends Phaser.Scene {
   dialogBox!: DialogBox;
   confirmDialog!: ConfirmDialog;
   tooltip!: Tooltip;
+  settingsPanel!: SettingsPanel;
 
   // 选中怪物信息显示
   private monsterInfoContainer!: Phaser.GameObjects.Container;
@@ -102,6 +104,9 @@ export class UIScene extends Phaser.Scene {
     // 技能面板
     this.skillPanel = new SkillPanel(this);
 
+    // 设置面板
+    this.settingsPanel = new SettingsPanel(this);
+
     // NPC对话框
     this.dialogBox = new DialogBox(this);
 
@@ -136,8 +141,16 @@ export class UIScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-C', () => this.characterPanel.toggle());
     // K - 技能面板
     this.input.keyboard.on('keydown-K', () => this.skillPanel.toggle());
-    // ESC - 关闭所有面板
-    this.input.keyboard.on('keydown-ESC', () => this.closeAllPanels());
+    // ESC - 设置面板 / 关闭面板
+    this.input.keyboard.on('keydown-ESC', () => {
+      if (this.settingsPanel.isOpen) {
+        this.settingsPanel.hide();
+      } else if (this.isAnyPanelOpen()) {
+        this.closeAllPanels();
+      } else {
+        this.settingsPanel.show();
+      }
+    });
 
     // 1-8 技能快捷键
     const skillKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT'];
@@ -160,16 +173,18 @@ export class UIScene extends Phaser.Scene {
     const skillSlot = character.skills[index];
     if (!skillSlot) return;
 
-    // 获取游戏场景中的玩家
+    // 获取游戏场景
     const gameScene = this.scene.get('DungeonScene') as DungeonScene | null;
     if (!gameScene) return;
 
     const player = (gameScene as unknown as { player: import('@/entities/Player').Player }).player;
     if (!player) return;
 
-    const target = player.attackTarget?.combatEntity;
-    useSkill(character, skillSlot.skillId, player.combatEntity, target);
-    player.syncHp();
+    const target = player.attackTarget;
+    if (!target || target.isDead) return;
+
+    // 通过DungeonScene处理（区分弹道/瞬发）
+    (gameScene as any).castSkillOnTarget(skillSlot, target);
   }
 
   /** 处理物品快捷键 */
@@ -220,6 +235,7 @@ export class UIScene extends Phaser.Scene {
     this.saveSlotPanel.hide();
     this.characterPanel.hide();
     this.skillPanel.hide();
+    this.settingsPanel.hide();
   }
 
   /** 任意面板是否打开 */
@@ -230,7 +246,8 @@ export class UIScene extends Phaser.Scene {
       this.repairPanel.isOpen || this.decomposePanel.isOpen ||
       this.craftPanel.isOpen || this.identifyPanel.isOpen ||
       this.warehousePanel.isOpen || this.saveSlotPanel.isOpen ||
-      this.characterPanel.isOpen || this.skillPanel.isOpen;
+      this.characterPanel.isOpen || this.skillPanel.isOpen ||
+      this.settingsPanel.isOpen;
   }
 
   /** 根据NPC action打开对应面板 */
@@ -424,6 +441,7 @@ export class UIScene extends Phaser.Scene {
     this.hotBar?.destroy();
     this.characterPanel?.destroy();
     this.skillPanel?.destroy();
+    this.settingsPanel?.destroy();
     this.dialogBox?.destroy();
     this.confirmDialog?.destroy();
     this.tooltip?.destroy();

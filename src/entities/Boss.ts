@@ -330,11 +330,13 @@ export class Boss {
     this.resetAggroTracking();
   }
 
-  /** 受伤 */
-  takeDamage(damage: number, isCritical: boolean): void {
+  /** 受伤（skipHpReduce=true 时只更新视觉效果，HP已由外部扣减） */
+  takeDamage(damage: number, isCritical: boolean, skipHpReduce = false): void {
     if (this.isDead) return;
 
-    this.combatEntity.hp = Math.max(0, this.combatEntity.hp - damage);
+    if (!skipHpReduce) {
+      this.combatEntity.hp = Math.max(0, this.combatEntity.hp - damage);
+    }
     this.updateHpBar();
 
     showDamagePopup(this.scene, this.container.x, this.container.y - 30, damage, isCritical ? 'critical' : 'normal');
@@ -380,7 +382,7 @@ export class Boss {
   }
 
   /** 死亡 */
-  private die(): void {
+  die(): void {
     this.isDead = true;
     this.aiState = 'dead';
 

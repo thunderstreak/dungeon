@@ -47,8 +47,6 @@ export class Player {
 
   // 攻击目标
   attackTarget: Monster | Boss | null = null;
-  private autoAttackCooldown = 0;
-  private readonly AUTO_ATTACK_INTERVAL = 800; // 普攻间隔(ms)
 
   /** 碰撞检测回调：返回目标格子是否可行走 */
   isWalkable: (gridX: number, gridY: number) => boolean = () => true;
@@ -109,9 +107,6 @@ export class Player {
 
     // 处理点击移动
     this.handleClickMove(delta);
-
-    // 自动攻击目标
-    this.handleAutoAttack(delta);
 
     // 平滑插值视觉位置
     this.visualX += (this.targetVisualX - this.visualX) * this.LERP_SPEED;
@@ -178,33 +173,12 @@ export class Player {
     }
   }
 
-  /** 自动攻击目标（仅在攻击范围内才攻击，不自动追击） */
-  private handleAutoAttack(delta: number): void {
-    if (!this.attackTarget || this.attackTarget.isDead) {
-      this.clearTarget();
-      return;
-    }
-
-    // 计算与目标的格子距离
-    const targetGrid = this.attackTarget.gridX;
-    const targetGridY = this.attackTarget.gridY;
-    const dx = Math.abs(targetGrid - this.gridX);
-    const dy = Math.abs(targetGridY - this.gridY);
-    const dist = dx + dy;
-
-    if (dist <= 1) {
-      // 在攻击范围内，执行普攻
-      this.autoAttackCooldown -= delta;
-      if (this.autoAttackCooldown <= 0) {
-        this.autoAttackCooldown = this.AUTO_ATTACK_INTERVAL;
-        this.onAutoAttack?.(this.attackTarget);
-      }
-    }
-    // 不在攻击范围内时不做任何事（不自动追击）
+  /** 检查是否在攻击范围内（相邻1格） */
+  isInRange(target: Monster | Boss): boolean {
+    const dx = Math.abs(target.gridX - this.gridX);
+    const dy = Math.abs(target.gridY - this.gridY);
+    return dx + dy <= 1;
   }
-
-  // 攻击回调（由DungeonScene设置）
-  onAutoAttack: ((target: Monster | Boss) => void) | null = null;
 
   /** 网格移动（设置目标位置，由update平滑插值） */
   moveByGrid(dx: number, dy: number): boolean {

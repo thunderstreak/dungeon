@@ -4,36 +4,47 @@ import type { Character, Equipment, EquipmentSlot, StatBonus, SetBonus } from '@
 import { eventBus } from './EventBus';
 import { ENHANCE_COST, ENHANCE_SUCCESS_RATE } from '@/data/npcs';
 import { PURPLE_SETS, WARRIOR_PINK_SETS, MAGE_PINK_SETS } from '@/data/equipment';
+import { recalculateStats } from './LevelSystem';
 
 // ==================== 穿戴/卸下 ====================
 
-/** 穿戴装备 */
-export function equipItem(character: Character, equipment: Equipment, slot: EquipmentSlot): boolean {
+/** 穿戴装备，返回旧装备（如有） */
+export function equipItem(character: Character, equipment: Equipment, slot: EquipmentSlot): { success: boolean; unequipped: Equipment | null } {
   // 检查等级要求
-  if (character.level < equipment.requirement.level) return false;
+  if (character.level < equipment.requirement.level) {
+    return { success: false, unequipped: null };
+  }
 
   // 检查职业要求（武器类型检查）
   if (slot === 'weapon') {
     const weaponType = equipment.type;
-    if (character.class === 'warrior' && !['sword', 'blade', 'axe'].includes(weaponType)) return false;
-    if (character.class === 'mage' && !['long_staff', 'short_staff', 'wand'].includes(weaponType)) return false;
+    if (character.class === 'warrior' && !['sword', 'blade', 'axe'].includes(weaponType)) {
+      return { success: false, unequipped: null };
+    }
+    if (character.class === 'mage' && !['long_staff', 'short_staff', 'wand'].includes(weaponType)) {
+      return { success: false, unequipped: null };
+    }
   }
 
   // 检查盾牌只限战士
-  if (slot === 'shield' && character.class === 'mage') return false;
+  if (slot === 'shield' && character.class === 'mage') {
+    return { success: false, unequipped: null };
+  }
 
   // 如果该槽位已有装备，先卸下
+  let unequipped: Equipment | null = null;
   const current = character.equipment[slot];
   if (current) {
-    unequipItem(character, slot);
+    unequipped = unequipItem(character, slot);
   }
 
   character.equipment[slot] = equipment;
   eventBus.emit('equipment:equip', { slot, itemId: equipment.id });
 
-  // 重新计算属性
+  // 重新计算属性（先重置基础值，再叠加装备）
+  recalculateStats(character);
   recalculateEquipmentStats(character);
-  return true;
+  return { success: true, unequipped };
 }
 
 /** 卸下装备 */
@@ -44,7 +55,8 @@ export function unequipItem(character: Character, slot: EquipmentSlot): Equipmen
   character.equipment[slot] = null;
   eventBus.emit('equipment:unequip', { slot, itemId: equipment.id });
 
-  // 重新计算属性
+  // 重新计算属性（先重置基础值，再叠加装备）
+  recalculateStats(character);
   recalculateEquipmentStats(character);
   return equipment;
 }
@@ -103,12 +115,18 @@ export function recalculateEquipmentStats(character: Character): void {
   // 先重置装备相关属性为基础值（由LevelSystem计算的基础值）
   // 这里只叠加装备加成
   for (const [stat, { flat, percent }] of bonuses) {
-    if (stat in stats) {
-      const key = stat as keyof typeof stats;
+    // hp/mp 加成应用到 maxHp/maxMp
+    const actualStat = stat === 'hp' ? 'maxHp' : stat === 'mp' ? 'maxMp' : stat;
+    if (actualStat in stats) {
+      const key = actualStat as keyof typeof stats;
       const baseVal = stats[key] as number;
       stats[key] = (baseVal + flat) * (1 + percent / 100) as typeof stats[typeof key];
     }
   }
+
+  // 装备加成后，当前HP/MP同步为最大值
+  stats.hp = stats.maxHp;
+  stats.mp = stats.maxMp;
 }
 
 // ==================== 套装效果 ====================

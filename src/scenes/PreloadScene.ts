@@ -41,9 +41,32 @@ export class PreloadScene extends Phaser.Scene {
       percentText.destroy();
     });
 
-    // TODO: 在此处加载游戏资源
-    // this.load.image('player', 'assets/sprites/player.png');
-    // this.load.tilemapTiledJSON('dungeon', 'assets/tilemaps/dungeon.json');
+    // 章鱼精灵表
+    const octopusBase = 'octopus';
+    this.load.spritesheet('octopus_idle', `${octopusBase}/spr_green_octopus_idle_strip13.png`, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('octopus_walk', `${octopusBase}/spr_green_octopus_walk_strip13.png`, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('octopus_attack', `${octopusBase}/spr_green_octopus_attack_strip13.png`, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('octopus_dmg', `${octopusBase}/spr_green_octopus_dmg_strip13.png`, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('octopus_death_1', `${octopusBase}/spr_green_octopus_death_1_strip13.png`, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('octopus_death_2', `${octopusBase}/spr_green_octopus_death_2_strip13.png`, { frameWidth: 64, frameHeight: 64 });
+
+    // 老鼠精灵表（棕/灰/白三色）
+    const ratColors = ['Brown', 'Gray', 'White'] as const;
+    const ratAnims = [
+      { name: 'Attack', frames: 6, w: 64, h: 64 },
+      { name: 'Dead', frames: 6, w: 64, h: 64 },
+      { name: 'Hurt', frames: 6, w: 64, h: 64 },
+      { name: 'Idle', frames: 6, w: 64, h: 64 },
+      { name: 'Run', frames: 6, w: 64, h: 64 },
+      { name: 'Stand', frames: 6, w: 64, h: 64 },
+      { name: 'Walk', frames: 4, w: 64, h: 64 },
+    ];
+    for (const color of ratColors) {
+      for (const anim of ratAnims) {
+        const key = `rat_${color.toLowerCase()}_${anim.name.toLowerCase()}`;
+        this.load.spritesheet(key, `rat/Rat_${color}_${anim.name}.png`, { frameWidth: anim.w, frameHeight: anim.h });
+      }
+    }
   }
 
   create(): void {

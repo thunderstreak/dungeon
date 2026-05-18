@@ -84,7 +84,6 @@ export const WARRIOR_BASE_STATS = {
   intelligence: 5,
   stamina: 12,
   spirit: 5,
-  agility: 8,
 } as const;
 
 /** 法师基础属性 */
@@ -93,7 +92,6 @@ export const MAGE_BASE_STATS = {
   intelligence: 15,
   stamina: 8,
   spirit: 12,
-  agility: 8,
 } as const;
 
 /** 战士战斗基础值 (不含属性点和装备) */

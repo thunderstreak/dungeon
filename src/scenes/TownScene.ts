@@ -1,13 +1,12 @@
 // 城镇场景 - 等距视角 + NPC交互 + 地牢入口
 
 import Phaser from 'phaser';
-import { TILE_SIZE } from '@/config/constants';
+import { TILE_SIZE, CANVAS_HEIGHT } from '@/config/constants';
 import { gameState } from '@/state/GameState';
 import { ALL_NPCS } from '@/data/npcs';
 import { Player } from '@/entities/Player';
 import { NPC } from '@/entities/NPC';
-import { setAutoSaveDataGetter, startAutoSave } from '@/systems/SaveSystem';
-import { saveToSlot as saveToUtilsSlot } from '@/utils/SaveUtils';
+import { saveToSlot } from '@/utils/SaveUtils';
 import { Hud } from '@/ui/Hud';
 import { isoToScreen, getDepthSort } from '@/utils/IsometricUtils';
 import {
@@ -29,6 +28,7 @@ export class TownScene extends Phaser.Scene {
   private worldHeight = 0;
   private entranceConfirmShowing = false;
   private wasInEntranceZone = false;
+  private autoSaveTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: 'TownScene' });
@@ -79,11 +79,13 @@ export class TownScene extends Phaser.Scene {
     // 禁用右键菜单
     this.input.mouse!.disableContextMenu();
 
-    // 左键点击移动
+    // 左键点击移动（排除底部HUD区域）
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       const uiScene = this.scene.get('UIScene') as import('./UIScene').UIScene | null;
       if (uiScene?.isAnyPanelOpen()) return;
       if (pointer.leftButtonDown()) {
+        // 底部HUD区域不触发移动（y > CANVAS_HEIGHT - 94）
+        if (pointer.y > CANVAS_HEIGHT - 94) return;
         this.player.moveToScreen(
           pointer.x, pointer.y,
           this.cameras.main.scrollX, this.cameras.main.scrollY,
@@ -95,31 +97,26 @@ export class TownScene extends Phaser.Scene {
     const worldSize = getTownWorldSize();
     this.worldWidth = worldSize.width;
     this.worldHeight = worldSize.height;
-    // 启动UI层
+    // 启动UI层（先停止确保重新创建）
+    this.scene.stop('UIScene');
     this.scene.launch('UIScene');
 
-    // 启动自动存档（5分钟间隔）
-    // 同时写入 SaveUtils（供加载时读取）和 SaveSystem
-    setAutoSaveDataGetter(() => {
-      const char = gameState.getCharacter();
-      // 同步写入 SaveUtils，确保"继续游戏"能读到最新数据
-      saveToUtilsSlot(0, { character: char, timestamp: Date.now(), version: '1.0' });
-      return {
-        version: '1.0',
-        timestamp: Date.now(),
-        slot: 0,
-        player: char,
-        dungeon: { currentFloor: 1, highestFloor: 1, isAbyss: false, roomsCleared: 0 },
-        inventory: char.inventory,
-        settings: { bgmVolume: 80, sfxVolume: 80, showDamageNumbers: true, autoPickup: false, difficulty: 1 },
-      };
-    });
-    startAutoSave();
     // 进入城镇立即存档一次
-    const char = gameState.getCharacter();
-    saveToUtilsSlot(0, { character: char, timestamp: Date.now(), version: '1.0' });
+    this.doAutoSave();
+
+    // 启动自动存档（5分钟间隔）
+    this.autoSaveTimer = this.time.addEvent({
+      delay: 5 * 60 * 1000,
+      callback: () => this.doAutoSave(),
+      loop: true,
+    });
 
     this.cameras.main.fadeIn(300);
+
+    // 场景关闭时清理定时器
+    this.events.on('shutdown', () => {
+      this.autoSaveTimer?.remove(false);
+    });
   }
 
   update(_time: number, delta: number): void {
@@ -140,6 +137,13 @@ export class TownScene extends Phaser.Scene {
 
     // 更新HUD
     this.hud.update(gameState.getCharacter());
+  }
+
+  private doAutoSave(): void {
+    const char = gameState.getCharacter();
+    if (char) {
+      saveToSlot(0, { character: char, timestamp: Date.now(), version: '1.0' });
+    }
   }
 
   /** 渲染正方形地板 */
@@ -238,6 +242,7 @@ export class TownScene extends Phaser.Scene {
   private enterDungeon(): void {
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.stop('UIScene');
       this.scene.start('DungeonScene');
     });
   }

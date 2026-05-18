@@ -58,27 +58,25 @@ export class SkillBar {
   }
 
   update(skills: SkillSlot[]): void {
+    // 先清空所有槽位，防止残留旧文本
     for (let i = 0; i < SKILL_BAR_SLOTS; i++) {
+      this.keyTexts[i].setText('');
+      this.cooldownGraphics[i].setVisible(false);
+    }
+    // 再根据当前skills设置
+    for (let i = 0; i < Math.min(skills.length, SKILL_BAR_SLOTS); i++) {
       const skill = skills[i];
+      if (!skill) continue;
       const nameText = this.keyTexts[i];
       const cdGfx = this.cooldownGraphics[i];
+      const skillData = ALL_SKILLS.find(s => s.id === skill.skillId);
+      nameText.setText(skillData ? skillData.name.slice(0, 2) : skill.skillId.slice(0, 2));
+      nameText.setColor('#ffffff');
 
-      if (skill) {
-        const skillData = ALL_SKILLS.find(s => s.id === skill.skillId);
-        nameText.setText(skillData ? skillData.name.slice(0, 2) : skill.skillId.slice(0, 2));
-        nameText.setColor('#ffffff');
-
-        if (skill.cooldownRemaining > 0 && skillData?.cooldown) {
-          // 冷却中：绘制扇形遮罩
-          const ratio = skill.cooldownRemaining / skillData.cooldown;
-          this.drawCooldownPie(cdGfx, ratio);
-          cdGfx.setVisible(true);
-        } else {
-          cdGfx.setVisible(false);
-        }
-      } else {
-        nameText.setText('');
-        cdGfx.setVisible(false);
+      if (skill.cooldownRemaining > 0 && skillData?.cooldown) {
+        const ratio = skill.cooldownRemaining / skillData.cooldown;
+        this.drawCooldownPie(cdGfx, ratio);
+        cdGfx.setVisible(true);
       }
     }
   }

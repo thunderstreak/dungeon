@@ -2,6 +2,7 @@
 
 import type { Character } from '@/config/types';
 import type { DungeonState } from '@/systems/DungeonSystem';
+import { recalculateStats } from '@/systems/LevelSystem';
 
 class GameState {
   character: Character | null = null;
@@ -10,6 +11,13 @@ class GameState {
   currentRoom = 0;
 
   setCharacter(character: Character): void {
+    this.clear();
+    // 旧存档可能缺少maxHp/maxMp，补全并恢复满值
+    if (character.stats.maxHp === undefined || character.stats.maxMp === undefined) {
+      recalculateStats(character);
+      character.stats.hp = character.stats.maxHp;
+      character.stats.mp = character.stats.maxMp;
+    }
     this.character = character;
   }
 

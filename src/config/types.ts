@@ -128,10 +128,11 @@ export interface CharacterStats {
   intelligence: number;
   stamina: number;
   spirit: number;
-  agility: number;
   // 战斗属性
   hp: number;
   mp: number;
+  maxHp: number;
+  maxMp: number;
   physicalAttack: number;
   magicAttack: number;
   physicalDefense: number;
@@ -150,7 +151,6 @@ export interface AllocatedStats {
   intelligence: number;
   stamina: number;
   spirit: number;
-  agility: number;
 }
 
 /** 装备栏 */
@@ -203,6 +203,7 @@ export interface Item {
 /** 背包槽位 */
 export interface InventorySlot {
   item: Item | null;
+  equipmentData?: Equipment;
   count: number;
 }
 

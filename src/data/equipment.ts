@@ -447,7 +447,6 @@ function generateLongStaves(): EquipmentTemplate[] {
   for (const d of LONG_STAFF_LEVELS) {
     result.push(...makeWB('long_staff', 'weapon', 'long_staff', d.level, d.name, [
       stat('magicAttack', 'flat', d.atk[0]),
-      stat('magicAttackMax', 'flat', d.atk[1]),
       stat('castSpeed', 'percent', -20),
       stat('criticalRate', 'percent', 3),
     ], d.dur, 'weapon_long_staff'));
@@ -455,7 +454,6 @@ function generateLongStaves(): EquipmentTemplate[] {
   for (const d of LONG_STAFF_PURPLES) {
     result.push(makePurple('long_staff', 'weapon', 'long_staff', d.level, `${d.name}套装`, [
       stat('magicAttack', 'flat', d.atk[0]),
-      stat('magicAttackMax', 'flat', d.atk[1]),
       stat('castSpeed', 'percent', -20),
       stat('criticalRate', 'percent', 5),
     ], d.dur, 'weapon_long_staff'));
@@ -498,7 +496,6 @@ function generateShortStaves(): EquipmentTemplate[] {
   for (const d of SHORT_STAFF_LEVELS) {
     result.push(...makeWB('short_staff', 'weapon', 'short_staff', d.level, d.name, [
       stat('magicAttack', 'flat', d.atk[0]),
-      stat('magicAttackMax', 'flat', d.atk[1]),
       stat('castSpeed', 'percent', 25),
       stat('criticalRate', 'percent', 5),
     ], d.dur, 'weapon_short_staff'));
@@ -506,7 +503,6 @@ function generateShortStaves(): EquipmentTemplate[] {
   for (const d of SHORT_STAFF_PURPLES) {
     result.push(makePurple('short_staff', 'weapon', 'short_staff', d.level, `${d.name}套装`, [
       stat('magicAttack', 'flat', d.atk[0]),
-      stat('magicAttackMax', 'flat', d.atk[1]),
       stat('castSpeed', 'percent', 25),
       stat('criticalRate', 'percent', 7),
     ], d.dur, 'weapon_short_staff'));
@@ -517,31 +513,31 @@ function generateShortStaves(): EquipmentTemplate[] {
 // ==================== 法师武器 - 魔杖 (施法速度+0%, 技能强化) ====================
 
 const WAND_LEVELS = [
-  { level: 1, name: '生锈的魔杖', atk: [2, 4], dur: 35, dmg: 2 },
-  { level: 5, name: '铁魔杖', atk: [5, 7], dur: 37, dmg: 3 },
-  { level: 10, name: '钢魔杖', atk: [8, 12], dur: 39, dmg: 4 },
-  { level: 15, name: '精钢魔杖', atk: [12, 17], dur: 41, dmg: 5 },
-  { level: 20, name: '黑铁魔杖', atk: [17, 23], dur: 43, dmg: 6 },
-  { level: 25, name: '秘银魔杖', atk: [23, 31], dur: 45, dmg: 7 },
-  { level: 30, name: '精金魔杖', atk: [31, 42], dur: 47, dmg: 8 },
-  { level: 35, name: '魔化魔杖', atk: [41, 55], dur: 48, dmg: 9 },
-  { level: 40, name: '龙骨魔杖', atk: [53, 70], dur: 49, dmg: 10 },
-  { level: 45, name: '暗影魔杖', atk: [66, 88], dur: 50, dmg: 11 },
-  { level: 50, name: '混沌魔杖', atk: [81, 108], dur: 50, dmg: 12 },
-  { level: 55, name: '神圣魔杖', atk: [99, 132], dur: 50, dmg: 13 },
-  { level: 60, name: '传说魔杖', atk: [120, 160], dur: 50, dmg: 15 },
+  { level: 1, name: '生锈的魔杖', atk: [2, 4], dur: 35 },
+  { level: 5, name: '铁魔杖', atk: [5, 7], dur: 37 },
+  { level: 10, name: '钢魔杖', atk: [8, 12], dur: 39 },
+  { level: 15, name: '精钢魔杖', atk: [12, 17], dur: 41 },
+  { level: 20, name: '黑铁魔杖', atk: [17, 23], dur: 43 },
+  { level: 25, name: '秘银魔杖', atk: [23, 31], dur: 45 },
+  { level: 30, name: '精金魔杖', atk: [31, 42], dur: 47 },
+  { level: 35, name: '魔化魔杖', atk: [41, 55], dur: 48 },
+  { level: 40, name: '龙骨魔杖', atk: [53, 70], dur: 49 },
+  { level: 45, name: '暗影魔杖', atk: [66, 88], dur: 50 },
+  { level: 50, name: '混沌魔杖', atk: [81, 108], dur: 50 },
+  { level: 55, name: '神圣魔杖', atk: [99, 132], dur: 50 },
+  { level: 60, name: '传说魔杖', atk: [120, 160], dur: 50 },
 ];
 
 const WAND_PURPLES = [
-  { level: 20, name: '暗影', atk: [20, 27], dur: 43, dmg: 8 },
-  { level: 25, name: '雷霆', atk: [27, 36], dur: 45, dmg: 9 },
-  { level: 30, name: '神圣', atk: [36, 48], dur: 47, dmg: 10 },
-  { level: 35, name: '暴风', atk: [47, 63], dur: 48, dmg: 11 },
-  { level: 40, name: '地狱', atk: [61, 81], dur: 49, dmg: 12 },
-  { level: 45, name: '天使', atk: [77, 102], dur: 50, dmg: 13 },
-  { level: 50, name: '龙鳞', atk: [95, 127], dur: 50, dmg: 14 },
-  { level: 55, name: '混沌', atk: [117, 156], dur: 50, dmg: 15 },
-  { level: 60, name: '神器', atk: [143, 190], dur: 50, dmg: 18 },
+  { level: 20, name: '暗影', atk: [20, 27], dur: 43 },
+  { level: 25, name: '雷霆', atk: [27, 36], dur: 45 },
+  { level: 30, name: '神圣', atk: [36, 48], dur: 47 },
+  { level: 35, name: '暴风', atk: [47, 63], dur: 48 },
+  { level: 40, name: '地狱', atk: [61, 81], dur: 49 },
+  { level: 45, name: '天使', atk: [77, 102], dur: 50 },
+  { level: 50, name: '龙鳞', atk: [95, 127], dur: 50 },
+  { level: 55, name: '混沌', atk: [117, 156], dur: 50 },
+  { level: 60, name: '神器', atk: [143, 190], dur: 50 },
 ];
 
 function generateWands(): EquipmentTemplate[] {
@@ -549,19 +545,15 @@ function generateWands(): EquipmentTemplate[] {
   for (const d of WAND_LEVELS) {
     result.push(...makeWB('wand', 'weapon', 'wand', d.level, d.name, [
       stat('magicAttack', 'flat', d.atk[0]),
-      stat('magicAttackMax', 'flat', d.atk[1]),
       stat('castSpeed', 'percent', 0),
       stat('criticalRate', 'percent', 4),
-      stat('skillDamage', 'percent', d.dmg),
     ], d.dur, 'weapon_wand'));
   }
   for (const d of WAND_PURPLES) {
     result.push(makePurple('wand', 'weapon', 'wand', d.level, `${d.name}套装`, [
       stat('magicAttack', 'flat', d.atk[0]),
-      stat('magicAttackMax', 'flat', d.atk[1]),
       stat('castSpeed', 'percent', 0),
       stat('criticalRate', 'percent', 6),
-      stat('skillDamage', 'percent', d.dmg),
     ], d.dur, 'weapon_wand'));
   }
   return result;
@@ -985,45 +977,42 @@ const WARRIOR_PO_WEAPONS: EquipmentTemplate[] = [
 const MAGE_PO_WEAPONS: EquipmentTemplate[] = [
   // 长杖
   ...makePinkOrange('ice_queen', '冰霜女皇之杖', 'weapon', 'long_staff', 30, [
-    stat('magicAttack', 'flat', 55), stat('magicAttackMax', 'flat', 73),
+    stat('magicAttack', 'flat', 55),
     stat('castSpeed', 'percent', -20), stat('criticalRate', 'percent', 8),
   ], 47, '冰系伤害+25%', 'weapon_long_staff', 'set_ice_queen', '冰霜女皇套装'),
   ...makePinkOrange('thunder_lord', '雷霆之主之杖', 'weapon', 'long_staff', 40, [
-    stat('magicAttack', 'flat', 75), stat('magicAttackMax', 'flat', 100),
+    stat('magicAttack', 'flat', 75),
     stat('castSpeed', 'percent', -20), stat('criticalRate', 'percent', 10),
   ], 49, '雷系伤害+25%', 'weapon_long_staff', 'set_thunder_lord', '雷霆之主套装'),
   ...makePinkOrange('flame_king', '烈焰之王之杖', 'weapon', 'long_staff', 50, [
-    stat('magicAttack', 'flat', 98), stat('magicAttackMax', 'flat', 130),
+    stat('magicAttack', 'flat', 98),
     stat('castSpeed', 'percent', -20), stat('criticalRate', 'percent', 12),
   ], 50, '火系伤害+25%', 'weapon_long_staff', 'set_flame_king', '烈焰之王套装'),
   // 短杖
   ...makePinkOrange('ice_queen', '冰霜女皇之杖', 'weapon', 'short_staff', 30, [
-    stat('magicAttack', 'flat', 44), stat('magicAttackMax', 'flat', 59),
+    stat('magicAttack', 'flat', 44),
     stat('castSpeed', 'percent', 25), stat('criticalRate', 'percent', 10),
   ], 47, '冰系伤害+25%', 'weapon_short_staff', 'set_ice_queen', '冰霜女皇套装'),
   ...makePinkOrange('thunder_lord', '雷霆之主之杖', 'weapon', 'short_staff', 40, [
-    stat('magicAttack', 'flat', 60), stat('magicAttackMax', 'flat', 80),
+    stat('magicAttack', 'flat', 60),
     stat('castSpeed', 'percent', 25), stat('criticalRate', 'percent', 12),
   ], 49, '雷系伤害+25%', 'weapon_short_staff', 'set_thunder_lord', '雷霆之主套装'),
   ...makePinkOrange('flame_king', '烈焰之王之杖', 'weapon', 'short_staff', 50, [
-    stat('magicAttack', 'flat', 78), stat('magicAttackMax', 'flat', 104),
+    stat('magicAttack', 'flat', 78),
     stat('castSpeed', 'percent', 25), stat('criticalRate', 'percent', 14),
   ], 50, '火系伤害+25%', 'weapon_short_staff', 'set_flame_king', '烈焰之王套装'),
   // 魔杖
   ...makePinkOrange('ice_queen', '冰霜女皇之杖', 'weapon', 'wand', 30, [
-    stat('magicAttack', 'flat', 44), stat('magicAttackMax', 'flat', 59),
+    stat('magicAttack', 'flat', 44),
     stat('castSpeed', 'percent', 0), stat('criticalRate', 'percent', 9),
-    stat('skillDamage', 'percent', 12),
   ], 47, '冰系伤害+30%', 'weapon_wand', 'set_ice_queen', '冰霜女皇套装'),
   ...makePinkOrange('thunder_lord', '雷霆之主之杖', 'weapon', 'wand', 40, [
-    stat('magicAttack', 'flat', 60), stat('magicAttackMax', 'flat', 80),
+    stat('magicAttack', 'flat', 60),
     stat('castSpeed', 'percent', 0), stat('criticalRate', 'percent', 11),
-    stat('skillDamage', 'percent', 15),
   ], 49, '雷系伤害+30%', 'weapon_wand', 'set_thunder_lord', '雷霆之主套装'),
   ...makePinkOrange('flame_king', '烈焰之王之杖', 'weapon', 'wand', 50, [
-    stat('magicAttack', 'flat', 78), stat('magicAttackMax', 'flat', 104),
+    stat('magicAttack', 'flat', 78),
     stat('castSpeed', 'percent', 0), stat('criticalRate', 'percent', 13),
-    stat('skillDamage', 'percent', 18),
   ], 50, '火系伤害+30%', 'weapon_wand', 'set_flame_king', '烈焰之王套装'),
 ];
 
@@ -1117,20 +1106,20 @@ const ABYSS_WARRIOR_WEAPONS: EquipmentTemplate[] = [
 
 const ABYSS_MAGE_WEAPONS: EquipmentTemplate[] = [
   // 长杖
-  makeAbyss('深渊·冰霜女皇之杖', 'weapon', 'long_staff', 30, [stat('magicAttack', 'flat', 60), stat('magicAttackMax', 'flat', 80), stat('criticalRate', 'percent', 6)], 47, '冰墙持续时间+3秒，可阻挡技能', 'weapon_long_staff'),
-  makeAbyss('深渊·暴风雪之杖', 'weapon', 'long_staff', 40, [stat('magicAttack', 'flat', 82), stat('magicAttackMax', 'flat', 109), stat('criticalRate', 'percent', 8)], 49, '暴风雪范围+60%，冰冻几率+20%', 'weapon_long_staff'),
-  makeAbyss('深渊·绝对零度', 'weapon', 'long_staff', 50, [stat('magicAttack', 'flat', 108), stat('magicAttackMax', 'flat', 144), stat('criticalRate', 'percent', 10)], 50, '绝对零度冻结时间+2秒，结束后减速50%', 'weapon_long_staff'),
-  makeAbyss('深渊·冰霜新星', 'weapon', 'long_staff', 60, [stat('magicAttack', 'flat', 132), stat('magicAttackMax', 'flat', 176), stat('criticalRate', 'percent', 12)], 50, '冰霜新星范围+80%，可连续释放2次', 'weapon_long_staff'),
+  makeAbyss('深渊·冰霜女皇之杖', 'weapon', 'long_staff', 30, [stat('magicAttack', 'flat', 60), stat('criticalRate', 'percent', 6)], 47, '冰墙持续时间+3秒，可阻挡技能', 'weapon_long_staff'),
+  makeAbyss('深渊·暴风雪之杖', 'weapon', 'long_staff', 40, [stat('magicAttack', 'flat', 82), stat('criticalRate', 'percent', 8)], 49, '暴风雪范围+60%，冰冻几率+20%', 'weapon_long_staff'),
+  makeAbyss('深渊·绝对零度', 'weapon', 'long_staff', 50, [stat('magicAttack', 'flat', 108), stat('criticalRate', 'percent', 10)], 50, '绝对零度冻结时间+2秒，结束后减速50%', 'weapon_long_staff'),
+  makeAbyss('深渊·冰霜新星', 'weapon', 'long_staff', 60, [stat('magicAttack', 'flat', 132), stat('criticalRate', 'percent', 12)], 50, '冰霜新星范围+80%，可连续释放2次', 'weapon_long_staff'),
   // 短杖
-  makeAbyss('深渊·雷霆一击', 'weapon', 'short_staff', 30, [stat('magicAttack', 'flat', 48), stat('magicAttackMax', 'flat', 64), stat('criticalRate', 'percent', 8)], 47, '雷霆一击变为落雷×3，每道100%伤害', 'weapon_short_staff'),
-  makeAbyss('深渊·连锁闪电', 'weapon', 'short_staff', 40, [stat('magicAttack', 'flat', 66), stat('magicAttackMax', 'flat', 88), stat('criticalRate', 'percent', 10)], 49, '连锁闪电弹射次数+3，伤害不衰减', 'weapon_short_staff'),
-  makeAbyss('深渊·雷神之怒', 'weapon', 'short_staff', 50, [stat('magicAttack', 'flat', 86), stat('magicAttackMax', 'flat', 115), stat('criticalRate', 'percent', 12)], 50, '雷神之怒眩晕几率+20%，范围+40%', 'weapon_short_staff'),
-  makeAbyss('深渊·天罚', 'weapon', 'short_staff', 60, [stat('magicAttack', 'flat', 105), stat('magicAttackMax', 'flat', 140), stat('criticalRate', 'percent', 15)], 50, '天罚落雷频率×2，持续时间+50%', 'weapon_short_staff'),
+  makeAbyss('深渊·雷霆一击', 'weapon', 'short_staff', 30, [stat('magicAttack', 'flat', 48), stat('criticalRate', 'percent', 8)], 47, '雷霆一击变为落雷×3，每道100%伤害', 'weapon_short_staff'),
+  makeAbyss('深渊·连锁闪电', 'weapon', 'short_staff', 40, [stat('magicAttack', 'flat', 66), stat('criticalRate', 'percent', 10)], 49, '连锁闪电弹射次数+3，伤害不衰减', 'weapon_short_staff'),
+  makeAbyss('深渊·雷神之怒', 'weapon', 'short_staff', 50, [stat('magicAttack', 'flat', 86), stat('criticalRate', 'percent', 12)], 50, '雷神之怒眩晕几率+20%，范围+40%', 'weapon_short_staff'),
+  makeAbyss('深渊·天罚', 'weapon', 'short_staff', 60, [stat('magicAttack', 'flat', 105), stat('criticalRate', 'percent', 15)], 50, '天罚落雷频率×2，持续时间+50%', 'weapon_short_staff'),
   // 魔杖
-  makeAbyss('深渊·火焰风暴', 'weapon', 'wand', 30, [stat('magicAttack', 'flat', 48), stat('magicAttackMax', 'flat', 64), stat('criticalRate', 'percent', 7), stat('skillDamage', 'percent', 10)], 47, '火焰风暴范围+50%，灼烧伤害+80%', 'weapon_wand'),
-  makeAbyss('深渊·陨石', 'weapon', 'wand', 40, [stat('magicAttack', 'flat', 66), stat('magicAttackMax', 'flat', 88), stat('criticalRate', 'percent', 9), stat('skillDamage', 'percent', 12)], 49, '陨石爆炸范围+60%，附加眩晕1秒', 'weapon_wand'),
-  makeAbyss('深渊·火墙', 'weapon', 'wand', 50, [stat('magicAttack', 'flat', 86), stat('magicAttackMax', 'flat', 115), stat('criticalRate', 'percent', 11), stat('skillDamage', 'percent', 15)], 50, '火墙持续时间+4秒，穿越伤害+50%', 'weapon_wand'),
-  makeAbyss('深渊·地狱火', 'weapon', 'wand', 60, [stat('magicAttack', 'flat', 105), stat('magicAttackMax', 'flat', 140), stat('criticalRate', 'percent', 13), stat('skillDamage', 'percent', 18)], 50, '地狱火范围+70%，击杀触发爆炸', 'weapon_wand'),
+  makeAbyss('深渊·火焰风暴', 'weapon', 'wand', 30, [stat('magicAttack', 'flat', 48), stat('criticalRate', 'percent', 7)], 47, '火焰风暴范围+50%，灼烧伤害+80%', 'weapon_wand'),
+  makeAbyss('深渊·陨石', 'weapon', 'wand', 40, [stat('magicAttack', 'flat', 66), stat('criticalRate', 'percent', 9)], 49, '陨石爆炸范围+60%，附加眩晕1秒', 'weapon_wand'),
+  makeAbyss('深渊·火墙', 'weapon', 'wand', 50, [stat('magicAttack', 'flat', 86), stat('criticalRate', 'percent', 11)], 50, '火墙持续时间+4秒，穿越伤害+50%', 'weapon_wand'),
+  makeAbyss('深渊·地狱火', 'weapon', 'wand', 60, [stat('magicAttack', 'flat', 105), stat('criticalRate', 'percent', 13)], 50, '地狱火范围+70%，击杀触发爆炸', 'weapon_wand'),
 ];
 
 // ---- 战士深渊防具 ----

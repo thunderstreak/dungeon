@@ -99,10 +99,9 @@ export function resetAllocatedStats(character: Character): void {
   character.attributePoints += character.allocatedStats.strength
     + character.allocatedStats.intelligence
     + character.allocatedStats.stamina
-    + character.allocatedStats.spirit
-    + character.allocatedStats.agility;
+    + character.allocatedStats.spirit;
 
-  character.allocatedStats = { strength: 0, intelligence: 0, stamina: 0, spirit: 0, agility: 0 };
+  character.allocatedStats = { strength: 0, intelligence: 0, stamina: 0, spirit: 0 };
   character.allocatedStatsSaved = false;
 
   recalculateStats(character);
@@ -134,7 +133,6 @@ export function recalculateStats(character: Character): void {
   const totalInt = base.intelligence + alloc.intelligence;
   const totalSta = base.stamina + alloc.stamina;
   const totalSpi = base.spirit + alloc.spirit;
-  const totalAgi = base.agility + alloc.agility;
 
   const stats = character.stats;
 
@@ -143,23 +141,24 @@ export function recalculateStats(character: Character): void {
   stats.intelligence = totalInt;
   stats.stamina = totalSta;
   stats.spirit = totalSpi;
-  stats.agility = totalAgi;
 
   // 战斗属性（基础值，不含装备/Buff加成）
   stats.physicalAttack = 10 + totalStr * 2;
   stats.magicAttack = 10 + totalInt * 2;
   stats.physicalDefense = totalSta * 1;
   stats.magicDefense = totalSpi * 1;
-  stats.criticalRate = totalAgi * 0.2;
-  stats.dodgeRate = totalAgi * 0.3;
-  stats.attackSpeed = 100 + totalAgi * 0.5;
+  stats.criticalRate = 0;
+  stats.dodgeRate = 0;
+  stats.attackSpeed = 100;
   stats.moveSpeed = 100;
 
   // HP/MP基础值（不含装备加成）
   const baseHp = character.class === 'warrior' ? 100 : 60;
   const baseMp = character.class === 'warrior' ? 30 : 80;
-  stats.hp = baseHp + totalSta * 20;
-  stats.mp = baseMp + totalSpi * 15;
+  stats.maxHp = baseHp + totalSta * 20;
+  stats.maxMp = baseMp + totalSpi * 15;
+  stats.hp = stats.maxHp;
+  stats.mp = stats.maxMp;
 
   // 暴击伤害固定150%
   stats.criticalDamage = 150;
@@ -173,8 +172,8 @@ export function recalculateStats(character: Character): void {
 /** 创建新角色 */
 export function createCharacter(name: string, characterClass: 'warrior' | 'mage'): Character {
   const stats: CharacterStats = {
-    strength: 0, intelligence: 0, stamina: 0, spirit: 0, agility: 0,
-    hp: 0, mp: 0, physicalAttack: 0, magicAttack: 0,
+    strength: 0, intelligence: 0, stamina: 0, spirit: 0,
+    hp: 0, mp: 0, maxHp: 0, maxMp: 0, physicalAttack: 0, magicAttack: 0,
     physicalDefense: 0, magicDefense: 0,
     criticalRate: 0, criticalDamage: 150,
     dodgeRate: 0, attackSpeed: 100, castSpeed: 100, moveSpeed: 100,
@@ -189,7 +188,7 @@ export function createCharacter(name: string, characterClass: 'warrior' | 'mage'
     experience: 0,
     skillPoints: 0,
     attributePoints: 0,
-    allocatedStats: { strength: 0, intelligence: 0, stamina: 0, spirit: 0, agility: 0 },
+    allocatedStats: { strength: 0, intelligence: 0, stamina: 0, spirit: 0 },
     allocatedStatsSaved: false,
     gold: 0,
     stats,
@@ -208,18 +207,14 @@ export function createCharacter(name: string, characterClass: 'warrior' | 'mage'
       maxSlotsPerCategory: 30,
       gold: 0,
     },
-    skills: (characterClass === 'warrior' ? WARRIOR_INITIAL_SKILLS : MAGE_INITIAL_SKILLS).map(s => ({
-      skillId: s.id,
-      level: 1,
-      cooldownRemaining: 0,
-    })),
+    skills: [],
     weaponMasteries: [],
     position: { x: 0, y: 0 },
   };
 
   recalculateStats(character);
 
-  // 初始技能点 = 职业初始技能数（3个初始技能免费）
+  // 初始技能点为0，通过升级获得
   character.skillPoints = 0;
 
   return character;

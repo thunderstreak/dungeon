@@ -10,9 +10,18 @@ import { Monster } from '@/entities/Monster';
 import { Boss } from '@/entities/Boss';
 import { showNotification } from '@/ui/NotificationToast';
 import { calcPhysicalDamage, applyDamage } from '@/systems/BattleSystem';
+import { executeSkillDamage, isSkillReady } from '@/systems/SkillSystem';
+import { ALL_SKILLS } from '@/data/skills';
+import type { Equipment, SkillSlot } from '@/config/types';
 import { calculateMonsterDrop, PityCounter } from '@/systems/DropSystem';
 import { addExperience } from '@/systems/LevelSystem';
-import { addGold } from '@/systems/InventorySystem';
+import { addGold, addEquipment, addItem } from '@/systems/InventorySystem';
+import { GroundLoot } from '@/entities/GroundLoot';
+import { generateLootItems } from '@/systems/LootGenerator';
+import { getEquipmentById } from '@/data/equipment';
+import { getPotionById, getMaterialById } from '@/data/items';
+import { RARITY_COLORS } from '@/config/constants';
+import type { Item } from '@/config/types';
 import { applyDeathPenalty } from '@/systems/DeathSystem';
 import { createDungeonState, tryTriggerAbyss, getFloorMultiplier } from '@/systems/DungeonSystem';
 import type { DungeonState } from '@/systems/DungeonSystem';
@@ -39,6 +48,7 @@ export class DungeonScene extends Phaser.Scene {
   private dungeonState!: DungeonState;
   private floorWalkability!: FloorWalkability;
   private roomsEntered = new Set<string>();
+  private groundLoots: GroundLoot[] = [];
 
   constructor() {
     super({ key: 'DungeonScene' });
@@ -57,6 +67,9 @@ export class DungeonScene extends Phaser.Scene {
 
     // 背景
     this.cameras.main.setBackgroundColor('#111111');
+
+    // 注册动画
+    this.createAnimations();
 
     // 生成地牢地图
     this.roomGenerator = new RoomGenerator();
@@ -131,49 +144,44 @@ export class DungeonScene extends Phaser.Scene {
       }
     });
 
-    // 点击选择目标
+    // 点击怪物标记（防止pointerdown同时触发移动）
+    let monsterClickedThisFrame = false;
+
+    // 点击选择目标 + 如果在攻击范围内直接攻击
     this.events.on('monster:click', (monster: Monster | Boss) => {
+      monsterClickedThisFrame = true;
       if (!monster.isDead && !this.playerDead) {
-        // 清除旧目标高亮
         this.player.clearTarget();
         this.player.setTarget(monster);
         monster.highlight();
+
+        // 在攻击范围内 → 直接攻击
+        if (this.player.isInRange(monster)) {
+          this.attackMonster(monster);
+        }
       }
     });
 
-    // 自动攻击回调（仅战士使用）
-    this.player.onAutoAttack = (target: Monster | Boss) => {
-      if (!target.isDead && !this.playerDead && this.player.character.class === 'warrior') {
-        this.attackMonster(target);
-      }
-    };
-
-    // 左键点击地面移动（如果没点到怪物）
+    // 左键点击地面移动（如果没点到怪物，且不在底部HUD区域）
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.playerDead) return;
       if (pointer.leftButtonDown()) {
-        // 检查是否点击了怪物
-        let clickedMonster = false;
-        for (const monster of this.monsters) {
-          if (!monster.isDead && monster.container.visible) {
-            const bounds = monster.container.getBounds();
-            if (bounds.contains(pointer.x, pointer.y)) {
-              clickedMonster = true;
-              break;
-            }
-          }
+        // 底部HUD区域不触发移动
+        if (pointer.y > CANVAS_HEIGHT - 94) return;
+        // 本帧已点击怪物 → 不移动
+        if (monsterClickedThisFrame) {
+          monsterClickedThisFrame = false;
+          return;
         }
-        // 没点到怪物 → 移动到点击位置
-        if (!clickedMonster) {
-          this.player.moveToScreen(pointer.x, pointer.y, this.cameras.main.scrollX, this.cameras.main.scrollY);
-        }
+        this.player.moveToScreen(pointer.x, pointer.y, this.cameras.main.scrollX, this.cameras.main.scrollY);
       }
     });
 
     // Camera跟随
     this.cameras.main.startFollow(this.player.container, true, 0.1, 0.1);
 
-    // 启动UI层
+    // 启动UI层（先停止确保重新创建）
+    this.scene.stop('UIScene');
     this.scene.launch('UIScene');
 
     this.cameras.main.fadeIn(300);
@@ -204,6 +212,13 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
 
+    // 检测技能/DOT伤害导致的死亡（HP<=0但未触发die的怪物）
+    for (const monster of this.monsters) {
+      if (!monster.isDead && monster.combatEntity.hp <= 0) {
+        monster.die();
+      }
+    }
+
     // 每帧同步HP：头顶血条直接读combatEntity.hp，底部HUD读character.stats.hp
     this.player.syncHp();
     this.player.updateHpBar();
@@ -219,6 +234,20 @@ export class DungeonScene extends Phaser.Scene {
       this.onRoomCleared();
     }
 
+    // 更新地面掉落物 + 拾取检测
+    for (let i = this.groundLoots.length - 1; i >= 0; i--) {
+      const loot = this.groundLoots[i];
+      if (!loot.update(this.time.now, delta)) {
+        loot.destroy();
+        this.groundLoots.splice(i, 1);
+        continue;
+      }
+      if (this.player.gridX === loot.gridX && this.player.gridY === loot.gridY) {
+        this.pickupLoot(loot);
+        this.groundLoots.splice(i, 1);
+      }
+    }
+
     // 更新UIScene中的HUD
     const uiScene = this.scene.get('UIScene') as UIScene | null;
     if (uiScene) {
@@ -229,7 +258,7 @@ export class DungeonScene extends Phaser.Scene {
   /** 在指定房间生成怪物 */
   private spawnMonstersForRoom(room: Room): void {
     const spawnPositions = room.getMonsterSpawnPositions();
-    const density = 0.08;
+    const density = 0.04;
     const floorMultiplier = getFloorMultiplier(this.floor, this.dungeonState.isAbyss);
 
     const roomMonsters = spawnMonstersInRoom(
@@ -312,6 +341,88 @@ export class DungeonScene extends Phaser.Scene {
     });
   }
 
+  /** 释放魔法弹道 */
+  private fireProjectile(target: Monster | Boss, skillId: string, onHit: () => void): void {
+    // 根据技能选择弹道颜色和大小
+    const colorMap: Record<string, { color: number; radius: number; speed: number }> = {
+      mage_fireball: { color: 0xff4400, radius: 5, speed: 400 },
+      mage_ice_bolt: { color: 0x44aaff, radius: 4, speed: 500 },
+      mage_chain_lightning: { color: 0xffff44, radius: 3, speed: 600 },
+    };
+    const config = colorMap[skillId] ?? { color: 0xaa44ff, radius: 4, speed: 450 };
+
+    const startX = this.player.container.x;
+    const startY = this.player.container.y;
+    const endX = target.container.x;
+    const endY = target.container.y;
+
+    const projectile = this.add.circle(startX, startY, config.radius, config.color);
+    projectile.setDepth(2000);
+
+    const distance = Phaser.Math.Distance.Between(startX, startY, endX, endY);
+    const duration = (distance / config.speed) * 1000;
+
+    this.tweens.add({
+      targets: projectile,
+      x: endX,
+      y: endY,
+      duration: Math.max(100, duration),
+      ease: 'Linear',
+      onComplete: () => {
+        projectile.destroy();
+        onHit();
+      },
+    });
+  }
+
+  /** 释放技能（区分远程弹道和近战瞬发） */
+  castSkillOnTarget(skillSlot: SkillSlot, target: Monster | Boss): void {
+    if (this.playerDead || target.isDead) return;
+
+    const skillData = ALL_SKILLS.find(s => s.id === skillSlot.skillId);
+    if (!skillData) return;
+
+    const character = gameState.getCharacter();
+    if (!isSkillReady(character, skillSlot.skillId)) return;
+
+    // 近战物理需要在攻击范围内（MP/冷却前检查）
+    if (skillData.damage?.type !== 'magic' && !this.player.isInRange(target)) return;
+
+    // 消耗MP和设置冷却（立即生效，防止连按）
+    if (skillData.manaCost) character.stats.mp -= skillData.manaCost;
+    if (skillData.cooldown) skillSlot.cooldownRemaining = skillData.cooldown;
+
+    if (skillData.damage?.type === 'magic') {
+      // 远程魔法：先弹道再伤害（无距离限制）
+      this.fireProjectile(target, skillSlot.skillId, () => {
+        const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level);
+        if (result) {
+          if (target instanceof Monster) {
+            target.takeDamage(result.finalDamage, result.isCritical, true);
+            target.flashHit();
+          } else if (target instanceof Boss) {
+            target.takeDamage(result.finalDamage, result.isCritical, true);
+            target.flashHit();
+          }
+        }
+        this.player.syncHp();
+      });
+    } else {
+      // 近战物理
+      const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level);
+      if (result) {
+        if (target instanceof Monster) {
+          target.takeDamage(result.finalDamage, result.isCritical, true);
+          target.flashHit();
+        } else if (target instanceof Boss) {
+          target.takeDamage(result.finalDamage, result.isCritical, true);
+          target.flashHit();
+        }
+      }
+      this.player.syncHp();
+    }
+  }
+
   /** 怪物死亡 */
   private onMonsterDeath(monster: Monster | Boss): void {
     // 如果玩家正在攻击此怪物，清除目标
@@ -322,20 +433,39 @@ export class DungeonScene extends Phaser.Scene {
     const character = gameState.getCharacter();
 
     // 掉落计算（Boss和Monster使用不同的数据结构）
-    let drop;
+    let goldAmount: number;
+    let expAmount: number;
     if (monster instanceof Monster) {
-      drop = calculateMonsterDrop(monster.monsterData, 1.0, false, this.pity);
+      const drop = calculateMonsterDrop(monster.monsterData, 1.0, false, this.pity);
+      goldAmount = drop.goldAmount;
+      expAmount = drop.expAmount;
+      // 生成地面掉落物
+      const lootItems = generateLootItems(drop, character.level);
+      for (const item of lootItems) {
+        const ox = Math.floor(Math.random() * 3) - 1;
+        const oy = Math.floor(Math.random() * 3) - 1;
+        const loot = new GroundLoot(this, item, monster.gridX + ox, monster.gridY + oy);
+        this.groundLoots.push(loot);
+      }
     } else {
       // Boss掉落：直接给固定奖励
-      drop = { goldAmount: 100 * this.floor, expAmount: 50 * this.floor };
+      goldAmount = 100 * this.floor;
+      expAmount = 50 * this.floor;
     }
 
-    addGold(character, drop.goldAmount);
-    const levelResult = addExperience(character, drop.expAmount);
+    addGold(character, goldAmount);
+    const levelResult = addExperience(character, expAmount);
 
-    showNotification(this, `+${drop.goldAmount} 金币  +${drop.expAmount} 经验`, '#ffdd44');
+    showNotification(this, `+${goldAmount} 金币  +${expAmount} 经验`, '#ffdd44');
     if (levelResult.levelsGained > 0) {
       showNotification(this, `升级! Lv.${levelResult.newLevel}`, '#ff88ff');
+      // 升级后恢复满HP/MP，同步combatEntity
+      this.player.combatEntity.maxHp = character.stats.maxHp;
+      this.player.combatEntity.maxMp = character.stats.maxMp;
+      this.player.combatEntity.hp = character.stats.maxHp;
+      this.player.combatEntity.mp = character.stats.maxMp;
+      this.player.syncHp();
+      this.player.updateHpBar();
     }
 
     const idx = this.monsters.indexOf(monster);
@@ -398,13 +528,77 @@ export class DungeonScene extends Phaser.Scene {
   /** 返回城镇 */
   private backToTown(): void {
     const character = gameState.getCharacter();
-    const maxHp = character.class === 'warrior' ? 100 : 60;
-    character.stats.hp = maxHp;
+    character.stats.hp = character.stats.maxHp;
+    character.stats.mp = character.stats.maxMp;
+
+    // 清理地面掉落物
+    for (const loot of this.groundLoots) {
+      loot.destroy();
+    }
+    this.groundLoots = [];
 
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.stop('UIScene');
       this.scene.start('TownScene');
     });
+  }
+
+  /** 拾取地面掉落物 */
+  private pickupLoot(loot: GroundLoot): void {
+    const character = gameState.getCharacter();
+    const item = loot.item;
+    let success = false;
+
+    if (item.type === 'equipment') {
+      const template = getEquipmentById(item.itemId);
+      if (template) {
+        const equipment: Equipment = {
+          ...template,
+          enhancementLevel: 0,
+          durability: template.maxDurability,
+        };
+        success = addEquipment(character, equipment);
+      }
+    } else if (item.type === 'potion') {
+      const potion = getPotionById(item.itemId);
+      if (potion) {
+        const consumableItem: Item = {
+          id: potion.id,
+          name: potion.name,
+          type: 'consumable',
+          icon: potion.icon,
+          description: potion.description,
+          isStackable: true,
+          maxStack: potion.maxStack,
+        };
+        const added = addItem(character, consumableItem, item.count);
+        success = added > 0;
+      }
+    } else if (item.type === 'material') {
+      const mat = getMaterialById(item.itemId);
+      if (mat) {
+        const materialItem: Item = {
+          id: mat.id,
+          name: mat.name,
+          type: 'material',
+          icon: mat.icon,
+          description: mat.description,
+          isStackable: true,
+          maxStack: mat.maxStack,
+        };
+        const added = addItem(character, materialItem, item.count);
+        success = added > 0;
+      }
+    }
+
+    if (success) {
+      const color = RARITY_COLORS[item.rarity] ?? '#ffffff';
+      showNotification(this, `拾取: ${item.name}`, color);
+    } else {
+      showNotification(this, '背包已满!', '#ff4444');
+    }
+    loot.destroy();
   }
 
   /** 获取小地图数据 */
@@ -471,6 +665,33 @@ export class DungeonScene extends Phaser.Scene {
     this.roomCleared = false;
 
     showNotification(this, `Boss出现: ${boss.bossData.name}!`, '#ff4444');
+  }
+
+  /** 注册怪物动画 */
+  private createAnimations(): void {
+    if (this.anims.exists('octopus_idle')) return; // 已注册
+
+    const rate = 12;
+
+    // 章鱼动画
+    this.anims.create({ key: 'octopus_idle', frames: this.anims.generateFrameNumbers('octopus_idle', { start: 0, end: 12 }), frameRate: rate, repeat: -1 });
+    this.anims.create({ key: 'octopus_walk', frames: this.anims.generateFrameNumbers('octopus_walk', { start: 0, end: 12 }), frameRate: rate, repeat: -1 });
+    this.anims.create({ key: 'octopus_attack', frames: this.anims.generateFrameNumbers('octopus_attack', { start: 0, end: 12 }), frameRate: 15, repeat: 0 });
+    this.anims.create({ key: 'octopus_dmg', frames: this.anims.generateFrameNumbers('octopus_dmg', { start: 0, end: 12 }), frameRate: 15, repeat: 0 });
+    this.anims.create({ key: 'octopus_death_1', frames: this.anims.generateFrameNumbers('octopus_death_1', { start: 0, end: 12 }), frameRate: rate, repeat: 0 });
+
+    // 老鼠动画（棕/灰/白三色）
+    const ratColors = ['brown', 'gray', 'white'];
+    for (const color of ratColors) {
+      const prefix = `rat_${color}`;
+      this.anims.create({ key: `${prefix}_idle`, frames: this.anims.generateFrameNumbers(`${prefix}_idle`, { start: 0, end: 5 }), frameRate: rate, repeat: -1 });
+      this.anims.create({ key: `${prefix}_walk`, frames: this.anims.generateFrameNumbers(`${prefix}_walk`, { start: 0, end: 3 }), frameRate: rate, repeat: -1 });
+      this.anims.create({ key: `${prefix}_run`, frames: this.anims.generateFrameNumbers(`${prefix}_run`, { start: 0, end: 5 }), frameRate: 15, repeat: -1 });
+      this.anims.create({ key: `${prefix}_attack`, frames: this.anims.generateFrameNumbers(`${prefix}_attack`, { start: 0, end: 5 }), frameRate: 15, repeat: 0 });
+      this.anims.create({ key: `${prefix}_hurt`, frames: this.anims.generateFrameNumbers(`${prefix}_hurt`, { start: 0, end: 5 }), frameRate: 15, repeat: 0 });
+      this.anims.create({ key: `${prefix}_dead`, frames: this.anims.generateFrameNumbers(`${prefix}_dead`, { start: 0, end: 5 }), frameRate: rate, repeat: 0 });
+      this.anims.create({ key: `${prefix}_stand`, frames: this.anims.generateFrameNumbers(`${prefix}_stand`, { start: 0, end: 5 }), frameRate: rate, repeat: -1 });
+    }
   }
 
   private applyMonsterWalkability(): void {

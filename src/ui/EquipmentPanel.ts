@@ -4,21 +4,24 @@ import Phaser from 'phaser';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config';
 import { BasePanel } from './BasePanel';
 import type { Character, EquipmentSlot } from '@/config/types';
+import { unequipItem } from '@/systems/EquipmentSystem';
+import { addEquipment } from '@/systems/InventorySystem';
+import { gameState } from '@/state/GameState';
 
 /** 槽位定义：slot + 标签 + 相对于角色中心的偏移 */
 const EQUIP_SLOTS: { slot: EquipmentSlot; label: string; ox: number; oy: number }[] = [
-  { slot: 'helmet',    label: '头盔',   ox: 0,    oy: -110 },
-  { slot: 'necklace',  label: '项链',   ox: 0,    oy: -78 },
-  { slot: 'armor',     label: '胸甲',   ox: 0,    oy: -30 },
+  { slot: 'helmet',    label: '头盔',   ox: 0,    oy: -100 },
+  { slot: 'necklace',  label: '项链',   ox: 0,    oy: -60 },
+  { slot: 'armor',     label: '胸甲',   ox: 0,    oy: -20 },
   { slot: 'weapon',    label: '武器',   ox: -90,  oy: -40 },
   { slot: 'shield',    label: '盾牌',   ox: 90,   oy: -40 },
-  { slot: 'belt',      label: '腰带',   ox: 0,    oy: 10 },
+  { slot: 'belt',      label: '腰带',   ox: 0,    oy: 20 },
   { slot: 'bracelet1', label: '手镯1',  ox: -90,  oy: 0 },
   { slot: 'bracelet2', label: '手镯2',  ox: 90,   oy: 0 },
   { slot: 'ring1',     label: '戒指1',  ox: -90,  oy: 40 },
   { slot: 'ring2',     label: '戒指2',  ox: 90,   oy: 40 },
-  { slot: 'boots',     label: '鞋子',   ox: 0,    oy: 70 },
-  { slot: 'rune',      label: '符文',   ox: 0,    oy: 110 },
+  { slot: 'boots',     label: '鞋子',   ox: 0,    oy: 60 },
+  { slot: 'rune',      label: '符文',   ox: 0,    oy: 100 },
 ];
 
 const SLOT_W = 68;
@@ -31,7 +34,6 @@ const RARITY_COLORS: Record<string, string> = {
 export class EquipmentPanel extends BasePanel {
   private slotTexts: Map<EquipmentSlot, Phaser.GameObjects.Text> = new Map();
   private slotBgs: Map<EquipmentSlot, Phaser.GameObjects.Rectangle> = new Map();
-  private statsText!: Phaser.GameObjects.Text;
   private character: Character | null = null;
 
   constructor(scene: Phaser.Scene) {
@@ -85,6 +87,21 @@ export class EquipmentPanel extends BasePanel {
       slotBg.on('pointerout', () => {
         (this.scene as any).tooltip?.hide();
       });
+      slotBg.on('pointerdown', () => {
+        const equip = this.character?.equipment[slot];
+        if (!equip) return;
+
+        const character = gameState.getCharacter();
+        if (!character) return;
+
+        const unequipped = unequipItem(character, slot);
+        if (unequipped) {
+          addEquipment(character, unequipped);
+          this.update(character);
+          const uiScene = this.scene.scene.get('UIScene') as any;
+          uiScene?.inventoryPanel?.refreshSlots?.();
+        }
+      });
       this.container.add(slotBg);
       this.slotBgs.set(slot, slotBg);
 
@@ -101,15 +118,6 @@ export class EquipmentPanel extends BasePanel {
       this.container.add(itemText);
       this.slotTexts.set(slot, itemText);
     }
-
-    // ===== 属性面板（底部）=====
-    const statsY = cy + 155;
-    this.statsText = this.scene.add.text(cx, statsY, '', {
-      fontSize: '11px', color: '#cccccc',
-      align: 'center',
-      lineSpacing: 4,
-    }).setOrigin(0.5, 0);
-    this.container.add(this.statsText);
   }
 
   /** 绘制简易角色剪影 */
@@ -162,12 +170,13 @@ export class EquipmentPanel extends BasePanel {
         text.setColor('#555555');
       }
     }
+  }
 
-    // 更新属性
-    const s = character.stats;
-    this.statsText.setText(
-      `物攻 ${Math.floor(s.physicalAttack)}  魔攻 ${Math.floor(s.magicAttack)}  物防 ${Math.floor(s.physicalDefense)}  魔防 ${Math.floor(s.magicDefense)}` +
-      `\n暴击 ${s.criticalRate.toFixed(1)}%  闪避 ${s.dodgeRate.toFixed(1)}%  攻速 ${s.attackSpeed.toFixed(0)}%  移速 ${s.moveSpeed.toFixed(0)}%`,
-    );
+  show(): void {
+    const character = gameState.getCharacter();
+    if (character) {
+      this.update(character);
+    }
+    super.show();
   }
 }

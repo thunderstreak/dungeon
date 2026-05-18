@@ -25,6 +25,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   private nameText: Phaser.GameObjects.Text | null = null;
   private nameInput = '';
   private errorMessage: Phaser.GameObjects.Text | null = null;
+  private keyHandler: ((event: KeyboardEvent) => void) | null = null;
 
   constructor() {
     super({ key: 'CharacterSelectScene' });
@@ -68,6 +69,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   /** 加载所有存档槽位 */
   private loadSlots(): void {
+    this.slots = [];
     const slotInfos = getAllSlots();
     for (const info of slotInfos) {
       if (info.exists) {
@@ -353,10 +355,20 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.nameInput = '';
     this.updateNameDisplay();
 
+    // 移除之前的监听器，避免重复触发
+    this.removeKeyHandler();
+
     // 监听键盘输入
-    this.input.keyboard?.once('keydown', (event: KeyboardEvent) => {
-      this.handleKeyInput(event);
-    });
+    this.keyHandler = (event: KeyboardEvent) => this.handleKeyInput(event);
+    this.input.keyboard?.once('keydown', this.keyHandler);
+  }
+
+  /** 移除键盘监听器 */
+  private removeKeyHandler(): void {
+    if (this.keyHandler) {
+      this.input.keyboard?.off('keydown', this.keyHandler);
+      this.keyHandler = null;
+    }
   }
 
   /** 处理键盘输入 */
@@ -447,11 +459,13 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     // 设置游戏状态并进入城镇
     gameState.setCharacter(character);
+    this.scene.stop('UIScene');
     this.scene.start('TownScene');
   }
 
   /** 关闭创建弹窗 */
   private closeCreationPopup(): void {
+    this.removeKeyHandler();
     if (this.popupContainer) {
       this.popupContainer.destroy(true);
       this.popupContainer = null;
@@ -538,6 +552,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const data = loadFromSlot(slot) as { character?: Character } | null;
     if (data?.character) {
       gameState.setCharacter(data.character);
+      this.scene.stop('UIScene');
       this.scene.start('TownScene');
     }
   }

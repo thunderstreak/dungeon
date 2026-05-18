@@ -50,6 +50,7 @@ export class MainMenuScene extends Phaser.Scene {
       const data = loadFromSlot(0) as { character?: Character } | null;
       if (data?.character) {
         gameState.setCharacter(data.character);
+        this.scene.stop('UIScene');
         this.scene.start('TownScene');
       } else {
         // 无存档提示

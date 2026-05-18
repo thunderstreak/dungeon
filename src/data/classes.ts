@@ -8,7 +8,6 @@ export interface ClassBaseStats {
   intelligence: number;
   stamina: number;
   spirit: number;
-  agility: number;
 }
 
 /** 职业数据 */
@@ -41,7 +40,6 @@ export const CLASSES: Record<CharacterClass, ClassData> = {
       intelligence: 5,
       stamina: 12,
       spirit: 5,
-      agility: 8,
     },
     specializations: ['berserker', 'swordsman', 'blademaster'],
   },
@@ -54,7 +52,6 @@ export const CLASSES: Record<CharacterClass, ClassData> = {
       intelligence: 15,
       stamina: 8,
       spirit: 12,
-      agility: 8,
     },
     specializations: ['ice_mage', 'thunder_mage', 'fire_mage'],
   },

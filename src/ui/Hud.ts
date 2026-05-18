@@ -129,13 +129,13 @@ export class Hud {
     const className = character.class === 'warrior' ? '战士' : '法师';
     this.classText.setText(className);
 
-    const maxHp = character.class === 'warrior' ? 100 + (character.allocatedStats.stamina) * 20 : 60 + (character.allocatedStats.stamina) * 20;
+    const maxHp = character.stats.maxHp;
     const currentHp = Math.min(character.stats.hp, maxHp);
     const hpFill = maxHp > 0 ? Math.max(0, currentHp / maxHp) : 0;
     this.updateOrbMask(this.hpMask, this.hpX, this.orbY, hpFill);
     this.hpText.setText(`${Math.floor(currentHp)}/${maxHp}`);
 
-    const maxMp = character.class === 'warrior' ? 30 + (character.allocatedStats.spirit) * 15 : 80 + (character.allocatedStats.spirit) * 15;
+    const maxMp = character.stats.maxMp;
     const currentMp = Math.min(character.stats.mp, maxMp);
     const mpFill = maxMp > 0 ? Math.max(0, currentMp / maxMp) : 0;
     this.updateOrbMask(this.mpMask, this.mpX, this.orbY, mpFill);
@@ -147,16 +147,15 @@ export class Hud {
     this.expText.setText(`Lv.${character.level}  ${character.experience}/${expForNext}`);
   }
 
-  /** 更新血球/蓝球遮罩，实现从上往下缩减效果 */
+  /** 更新血球/蓝球遮罩，实现水杯效果（从上往下减少） */
   private updateOrbMask(mask: Phaser.GameObjects.Graphics, cx: number, cy: number, fillRatio: number): void {
     const r = this.orbSize / 2;
     mask.clear();
     mask.fillStyle(0xffffff);
-    // 遮罩矩形从 orb 顶部往下延伸，fillRatio=1 时覆盖整个圆，fillRatio=0 时只露出底部一小条
-    const maskTop = cy - r;
+    // 遮罩矩形从 orb 底部往上延伸，fillRatio=1 时覆盖整个圆，fillRatio=0 时只露出底部一小条
+    const maskTop = cy + r - this.orbSize * fillRatio;
     const maskBottom = cy + r;
-    const maskHeight = (maskBottom - maskTop) * fillRatio;
-    mask.fillRect(cx - r, maskTop, this.orbSize, maskHeight);
+    mask.fillRect(cx - r, maskTop, this.orbSize, maskBottom - maskTop);
   }
 
   destroy(): void {
