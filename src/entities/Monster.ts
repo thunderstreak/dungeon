@@ -33,7 +33,7 @@ const SPRITE_CONFIGS: Record<string, SpriteAnimConfig> = {
     attackKey: 'octopus_attack',
     hurtKey: 'octopus_dmg',
     deathKey: 'octopus_death_1',
-    scale: 0.75,
+    scale: 1.0,
   },
   rat_brown: {
     prefix: 'rat_brown_',
@@ -44,7 +44,7 @@ const SPRITE_CONFIGS: Record<string, SpriteAnimConfig> = {
     hurtKey: 'rat_brown_hurt',
     deathKey: 'rat_brown_dead',
     standKey: 'rat_brown_stand',
-    scale: 0.75,
+    scale: 1.0,
   },
   rat_gray: {
     prefix: 'rat_gray_',
@@ -55,7 +55,7 @@ const SPRITE_CONFIGS: Record<string, SpriteAnimConfig> = {
     hurtKey: 'rat_gray_hurt',
     deathKey: 'rat_gray_dead',
     standKey: 'rat_gray_stand',
-    scale: 0.75,
+    scale: 1.0,
   },
   rat_white: {
     prefix: 'rat_white_',
@@ -66,7 +66,7 @@ const SPRITE_CONFIGS: Record<string, SpriteAnimConfig> = {
     hurtKey: 'rat_white_hurt',
     deathKey: 'rat_white_dead',
     standKey: 'rat_white_stand',
-    scale: 0.75,
+    scale: 1.0,
   },
 };
 

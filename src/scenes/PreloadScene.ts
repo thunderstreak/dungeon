@@ -67,6 +67,9 @@ export class PreloadScene extends Phaser.Scene {
         this.load.spritesheet(key, `rat/Rat_${color}_${anim.name}.png`, { frameWidth: anim.w, frameHeight: anim.h });
       }
     }
+
+    // 法杖icon精灵图 (16帧，一排6个，每帧32x32)
+    this.load.spritesheet('staff_icons', 'sprites/weapons/staff-icons.png', { frameWidth: 32, frameHeight: 32 });
   }
 
   create(): void {

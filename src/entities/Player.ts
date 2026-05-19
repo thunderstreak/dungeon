@@ -10,6 +10,8 @@ import type { Monster } from './Monster';
 import type { Boss } from './Boss';
 import { playAttackAnimation as playAttackTween } from '@/ui/AttackAnimation';
 import { createPlayerPixelBody, getPlayerMoveAnimationPose } from '@/ui/PixelBodies';
+import { createRegenState, updateRegen, recordDamage } from '@/systems/RegenSystem';
+import type { RegenState } from '@/systems/RegenSystem';
 
 /** 玩家朝向 */
 type FacingDirection = 'left' | 'right' | 'up' | 'down';
@@ -48,6 +50,9 @@ export class Player {
   // 攻击目标
   attackTarget: Monster | Boss | null = null;
 
+  // 自动恢复状态
+  private regenState: RegenState;
+
   /** 碰撞检测回调：返回目标格子是否可行走 */
   isWalkable: (gridX: number, gridY: number) => boolean = () => true;
 
@@ -62,6 +67,9 @@ export class Player {
 
     // 初始化战斗实体
     this.combatEntity = createCombatEntityFromCharacter(character);
+
+    // 初始化恢复状态
+    this.regenState = createRegenState();
 
     // 屏幕坐标
     const pos = isoToScreen(spawnX, spawnY);
@@ -105,6 +113,9 @@ export class Player {
     // 更新Buff
     this.combatEntity.buffManager.update(delta / 1000);
 
+    // 更新自动恢复
+    updateRegen(this.combatEntity, this.character, delta, this.regenState, this.scene.time.now);
+
     // 处理点击移动
     this.handleClickMove(delta);
 
@@ -115,8 +126,9 @@ export class Player {
 
     this.updateMoveAnimation(delta);
 
-    // 同步HP
+    // 同步HP和MP
     this.syncHp();
+    this.syncMp();
 
     // 检查死亡
     if (this.combatEntity.hp <= 0) {
@@ -236,6 +248,7 @@ export class Player {
     if (result.isDodged) return 0;
 
     const actualDamage = applyDamage(this.combatEntity, result);
+    recordDamage(this.regenState, this.scene.time.now);
     this.syncHp();
     this.updateHpBar();
     return actualDamage;
@@ -295,6 +308,11 @@ export class Player {
   /** 同步战斗实体HP到角色数据 */
   syncHp(): void {
     this.character.stats.hp = Math.max(0, this.combatEntity.hp);
+  }
+
+  /** 同步战斗实体MP到角色数据 */
+  syncMp(): void {
+    this.character.stats.mp = Math.max(0, this.combatEntity.mp);
   }
 
   /** 更新血条显示 */

@@ -444,7 +444,12 @@ export class DungeonScene extends Phaser.Scene {
       for (const item of lootItems) {
         const ox = Math.floor(Math.random() * 3) - 1;
         const oy = Math.floor(Math.random() * 3) - 1;
-        const loot = new GroundLoot(this, item, monster.gridX + ox, monster.gridY + oy);
+        const lootX = monster.gridX + ox;
+        const lootY = monster.gridY + oy;
+        // 确保掉落物在可行走区域，否则放在怪物位置
+        const finalX = this.floorWalkability.isWalkable(lootX, lootY) ? lootX : monster.gridX;
+        const finalY = this.floorWalkability.isWalkable(lootX, lootY) ? lootY : monster.gridY;
+        const loot = new GroundLoot(this, item, finalX, finalY);
         this.groundLoots.push(loot);
       }
     } else {

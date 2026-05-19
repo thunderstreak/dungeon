@@ -8,6 +8,11 @@ import { getEquipmentById } from '@/data/equipment';
 import { equipItem } from '@/systems/EquipmentSystem';
 import { removeItem, addEquipment } from '@/systems/InventorySystem';
 import { gameState } from '@/state/GameState';
+import { ContextMenu } from './ContextMenu';
+import { GroundLoot } from '@/entities/GroundLoot';
+import type { GroundLootItem } from '@/entities/GroundLoot';
+import type { EquipmentRarity } from '@/config/types';
+import { showNotification } from './NotificationToast';
 
 const CATEGORIES: InventoryCategory[] = ['equipment', 'consumable', 'material', 'other'];
 const CATEGORY_NAMES: Record<InventoryCategory, string> = {
@@ -28,9 +33,11 @@ export class InventoryPanel extends BasePanel {
   private goldText!: Phaser.GameObjects.Text;
   private slots: InventorySlot[] = [];
   private itemCount = 20;
+  private contextMenu: ContextMenu;
 
   constructor(scene: Phaser.Scene) {
     super(scene);
+    this.contextMenu = new ContextMenu(scene);
     this.createContent();
   }
 
@@ -131,9 +138,18 @@ export class InventoryPanel extends BasePanel {
         (this.scene as any).tooltip?.hide();
       });
       // 点击穿戴装备
-      slotBg.on('pointerdown', () => {
+      slotBg.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
         const slot = this.slots[idx];
-        if (!slot?.item || slot.item.type !== 'equipment') return;
+        if (!slot?.item) return;
+
+        // 右键弹出上下文菜单
+        if (pointer.button === 2) {
+          this.showContextMenu(pointer.x, pointer.y, slot, idx);
+          return;
+        }
+
+        // 左键：仅装备类物品可穿脱
+        if (slot.item.type !== 'equipment') return;
 
         const character = gameState.getCharacter();
         if (!character) return;
@@ -150,6 +166,10 @@ export class InventoryPanel extends BasePanel {
           }
         }
         if (!equipment) return;
+
+        // 如果该槽位已装备相同装备，不做任何操作
+        const currentEquipped = character.equipment[equipment.slot];
+        if (currentEquipped && currentEquipped.id === equipment.id) return;
 
         const result = equipItem(character, equipment, equipment.slot);
         if (result.success) {
@@ -200,6 +220,11 @@ export class InventoryPanel extends BasePanel {
     this.refreshSlots();
   }
 
+  hide(): void {
+    this.contextMenu.hide();
+    super.hide();
+  }
+
   private switchCategory(cat: InventoryCategory): void {
     this.currentCategory = cat;
     CATEGORIES.forEach((c, i) => {
@@ -209,6 +234,55 @@ export class InventoryPanel extends BasePanel {
       this.categoryTexts[i].setColor(selected ? '#ffffff' : '#aaaacc');
     });
     this.refreshSlots();
+  }
+
+  private showContextMenu(x: number, y: number, slot: InventorySlot, _slotIdx: number): void {
+    this.contextMenu.show(x, y, [
+      {
+        label: '丢弃',
+        color: '#ff6666',
+        callback: () => this.discardItem(slot),
+      },
+      {
+        label: '关闭',
+        callback: () => {},
+      },
+    ]);
+  }
+
+  private discardItem(slot: InventorySlot): void {
+    const character = gameState.getCharacter();
+    if (!character || !slot.item) return;
+
+    // 获取玩家位置
+    const dungeonScene = this.scene.scene.get('DungeonScene') as any;
+    const player = dungeonScene?.player;
+    if (!player) {
+      showNotification(this.scene, '无法丢弃', '#ff6666');
+      return;
+    }
+
+    const item = slot.item;
+    const count = slot.count;
+
+    // 从背包移除
+    if (!removeItem(character, item.id, count)) return;
+
+    // 构建地面掉落物数据
+    const groundItem: GroundLootItem = {
+      itemId: item.id,
+      name: item.name,
+      type: item.type === 'equipment' ? 'equipment' : item.type === 'consumable' ? 'potion' : 'material',
+      rarity: (slot.equipmentData?.rarity ?? 'white') as EquipmentRarity,
+      count,
+    };
+
+    // 在角色当前位置创建地面掉落物
+    const loot = new GroundLoot(dungeonScene, groundItem, player.gridX, player.gridY);
+    dungeonScene.groundLoots.push(loot);
+
+    this.refreshSlots();
+    showNotification(this.scene, `丢弃了 ${item.name}`, '#cccccc');
   }
 
   private refreshSlots(): void {

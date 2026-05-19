@@ -123,6 +123,7 @@ export function removeItem(character: Character, itemId: string, count: number):
       if (slot.count <= 0) {
         slot.item = null;
         slot.count = 0;
+        slot.equipmentData = undefined;
       }
     }
   }

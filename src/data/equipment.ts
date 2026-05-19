@@ -4,6 +4,7 @@ import type {
   EquipmentRarity, EquipmentSlot, EquipmentType,
   StatBonus, SetBonus, SetBonusEffect,
 } from '@/config/types';
+import { getStaffIconKey } from '@/config/weaponIcons';
 
 // ==================== 装备数据结构 ====================
 
@@ -449,14 +450,14 @@ function generateLongStaves(): EquipmentTemplate[] {
       stat('magicAttack', 'flat', d.atk[0]),
       stat('castSpeed', 'percent', -20),
       stat('criticalRate', 'percent', 3),
-    ], d.dur, 'weapon_long_staff'));
+    ], d.dur, getStaffIconKey('long_staff', d.level)));
   }
   for (const d of LONG_STAFF_PURPLES) {
     result.push(makePurple('long_staff', 'weapon', 'long_staff', d.level, `${d.name}套装`, [
       stat('magicAttack', 'flat', d.atk[0]),
       stat('castSpeed', 'percent', -20),
       stat('criticalRate', 'percent', 5),
-    ], d.dur, 'weapon_long_staff'));
+    ], d.dur, getStaffIconKey('long_staff', d.level)));
   }
   return result;
 }
@@ -498,14 +499,14 @@ function generateShortStaves(): EquipmentTemplate[] {
       stat('magicAttack', 'flat', d.atk[0]),
       stat('castSpeed', 'percent', 25),
       stat('criticalRate', 'percent', 5),
-    ], d.dur, 'weapon_short_staff'));
+    ], d.dur, getStaffIconKey('short_staff', d.level)));
   }
   for (const d of SHORT_STAFF_PURPLES) {
     result.push(makePurple('short_staff', 'weapon', 'short_staff', d.level, `${d.name}套装`, [
       stat('magicAttack', 'flat', d.atk[0]),
       stat('castSpeed', 'percent', 25),
       stat('criticalRate', 'percent', 7),
-    ], d.dur, 'weapon_short_staff'));
+    ], d.dur, getStaffIconKey('short_staff', d.level)));
   }
   return result;
 }

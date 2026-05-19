@@ -6,6 +6,7 @@ import {
   isTownWalkable,
   viewportToWorldPoint,
 } from './TownBounds';
+import { TILE_SIZE, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants';
 
 function assertEqual<T>(actual: T, expected: T): void {
   if (actual !== expected) {
@@ -23,12 +24,12 @@ function assertDeepEqual(
 
 const worldSize = getTownWorldSize();
 
-assertEqual(worldSize.width, (TOWN_WIDTH - 1) * 32 + 16);
-assertEqual(worldSize.height, (TOWN_HEIGHT - 1) * 32 + 16);
+assertEqual(worldSize.width, (TOWN_WIDTH - 1) * TILE_SIZE + TILE_SIZE / 2);
+assertEqual(worldSize.height, (TOWN_HEIGHT - 1) * TILE_SIZE + TILE_SIZE / 2);
 
-assertDeepEqual(getTownCameraScroll(worldSize.width - 16, worldSize.height - 16), {
-  x: worldSize.width - 960,
-  y: worldSize.height - 640,
+assertDeepEqual(getTownCameraScroll(worldSize.width - TILE_SIZE / 2, worldSize.height - TILE_SIZE / 2), {
+  x: worldSize.width - CANVAS_WIDTH,
+  y: worldSize.height - CANVAS_HEIGHT,
 });
 
 assertEqual(isTownWalkable(0, 0), true);

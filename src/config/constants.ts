@@ -17,7 +17,7 @@ export const CANVAS_WIDTH = 960;
 export const CANVAS_HEIGHT = 640;
 
 /** 瓦片大小 (像素) — 正方形 */
-export const TILE_SIZE = 32;
+export const TILE_SIZE = 64;
 
 /** 兼容旧代码 */
 export const ISO_TILE_WIDTH = TILE_SIZE;
@@ -224,6 +224,26 @@ export const MAX_CRITICAL_RATE = 100;
 
 /** 闪避率上限 (%) */
 export const MAX_DODGE_RATE = 100;
+
+// ==================== 自动恢复 ====================
+
+/** 基础HP恢复 (每分钟) */
+export const BASE_HP_REGEN = 10;
+
+/** 基础MP恢复 (每分钟) */
+export const BASE_MP_REGEN = 5;
+
+/** 每点体力额外HP恢复 (每分钟) */
+export const STA_HP_REGEN_PER_POINT = 2;
+
+/** 每点精神额外MP恢复 (每分钟) */
+export const SPI_MP_REGEN_PER_POINT = 1.5;
+
+/** 恢复结算间隔 (毫秒) */
+export const REGEN_SETTLE_INTERVAL = 1000;
+
+/** 脱战恢复延迟 (毫秒) */
+export const COMBAT_REGEN_DELAY = 5000;
 
 // ==================== 仇恨系统 ====================
 
