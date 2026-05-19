@@ -139,6 +139,9 @@ export class InventoryPanel extends BasePanel {
       });
       // 点击穿戴装备
       slotBg.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        // 如果右键菜单已打开，不处理slot点击
+        if (this.contextMenu.isOpen) return;
+
         const slot = this.slots[idx];
         if (!slot?.item) return;
 

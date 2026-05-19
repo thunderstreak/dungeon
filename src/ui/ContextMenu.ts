@@ -13,7 +13,7 @@ export class ContextMenu {
   private container: Phaser.GameObjects.Container;
   private bg: Phaser.GameObjects.Rectangle | null = null;
   private optionBgs: Phaser.GameObjects.Rectangle[] = [];
-  private isOpen = false;
+  isOpen = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
