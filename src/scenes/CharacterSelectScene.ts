@@ -458,6 +458,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     }
 
     // 设置游戏状态并进入城镇
+    gameState.currentSaveSlot = slot;
     gameState.setCharacter(character);
     this.scene.stop('UIScene');
     this.scene.start('TownScene');

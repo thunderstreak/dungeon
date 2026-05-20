@@ -10,9 +10,12 @@ export class SkillBar {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
   private slots: Phaser.GameObjects.Container[] = [];
+  private hoverHighlights: Phaser.GameObjects.Rectangle[] = [];
+  private selectionIndicators: Phaser.GameObjects.Rectangle[] = [];
   private cooldownGraphics: Phaser.GameObjects.Graphics[] = [];
   private keyTexts: Phaser.GameObjects.Text[] = [];
   private slotSize = BOTTOM_HUD_LAYOUT.slotSize;
+  private selectedIndex = -1;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -27,7 +30,27 @@ export class SkillBar {
       // 槽位背景
       const bg = this.scene.add.rectangle(0, 0, this.slotSize, this.slotSize, 0x17131b, 0.95);
       bg.setStrokeStyle(2, 0x7b552a);
+      bg.setInteractive({ useHandCursor: true });
       slotContainer.add(bg);
+
+      // 鼠标悬停高亮
+      const hover = this.scene.add.rectangle(0, 0, this.slotSize, this.slotSize, 0xffffff, 0.15);
+      hover.setOrigin(0.5);
+      hover.setVisible(false);
+      slotContainer.add(hover);
+      this.hoverHighlights.push(hover);
+
+      bg.on('pointerover', () => { hover.setVisible(true); });
+      bg.on('pointerout', () => { hover.setVisible(false); });
+
+      // 选中指示器（亮色边框）
+      const selector = this.scene.add.rectangle(0, 0, this.slotSize + 2, this.slotSize + 2);
+      selector.setOrigin(0.5);
+      selector.setFillStyle(0x000000, 0);
+      selector.setStrokeStyle(2, 0xffdd44);
+      selector.setVisible(false);
+      slotContainer.add(selector);
+      this.selectionIndicators.push(selector);
 
       const inner = this.scene.add.rectangle(0, 0, this.slotSize - 6, this.slotSize - 6, 0x20213a, 0.75);
       inner.setStrokeStyle(1, 0x2f3d86, 0.6);
@@ -62,6 +85,11 @@ export class SkillBar {
     for (let i = 0; i < SKILL_BAR_SLOTS; i++) {
       this.keyTexts[i].setText('');
       this.cooldownGraphics[i].setVisible(false);
+    }
+
+    // 更新选中指示器
+    for (let i = 0; i < SKILL_BAR_SLOTS; i++) {
+      this.selectionIndicators[i].setVisible(i === this.selectedIndex);
     }
     // 再根据当前skills设置
     for (let i = 0; i < Math.min(skills.length, SKILL_BAR_SLOTS); i++) {
@@ -115,6 +143,10 @@ export class SkillBar {
 
     gfx.closePath();
     gfx.fillPath();
+  }
+
+  setSelected(index: number): void {
+    this.selectedIndex = index;
   }
 
   destroy(): void {

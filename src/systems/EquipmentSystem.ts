@@ -5,6 +5,7 @@ import { eventBus } from './EventBus';
 import { ENHANCE_COST, ENHANCE_SUCCESS_RATE } from '@/data/npcs';
 import { PURPLE_SETS, WARRIOR_PINK_SETS, MAGE_PINK_SETS } from '@/data/equipment';
 import { recalculateStats } from './LevelSystem';
+import { applyPassiveStats } from './SkillSystem';
 
 // ==================== 穿戴/卸下 ====================
 
@@ -149,6 +150,9 @@ export function recalculateEquipmentStats(character: Character): void {
   // 装备加成后，当前HP/MP同步为最大值
   stats.hp = stats.maxHp;
   stats.mp = stats.maxMp;
+
+  // 叠加被动技能属性加成
+  applyPassiveStats(character);
 }
 
 // ==================== 套装效果 ====================

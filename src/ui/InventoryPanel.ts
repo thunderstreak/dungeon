@@ -13,6 +13,8 @@ import { GroundLoot } from '@/entities/GroundLoot';
 import type { GroundLootItem } from '@/entities/GroundLoot';
 import type { EquipmentRarity } from '@/config/types';
 import { showNotification } from './NotificationToast';
+import { getPotionFrame, getMaterialFrame } from './PotionIcons';
+import { getMageWeaponIcon } from '@/config/weaponIcons';
 
 const CATEGORIES: InventoryCategory[] = ['equipment', 'consumable', 'material', 'other'];
 const CATEGORY_NAMES: Record<InventoryCategory, string> = {
@@ -29,6 +31,7 @@ export class InventoryPanel extends BasePanel {
   private slotBgs: Phaser.GameObjects.Rectangle[] = [];
   private slotTexts: Phaser.GameObjects.Text[] = [];
   private countTexts: Phaser.GameObjects.Text[] = [];
+  private slotIcons: Phaser.GameObjects.Sprite[] = [];
   private currentCategory: InventoryCategory = 'equipment';
   private goldText!: Phaser.GameObjects.Text;
   private slots: InventorySlot[] = [];
@@ -226,6 +229,13 @@ export class InventoryPanel extends BasePanel {
       this.container.add(slotBg);
       this.slotBgs.push(slotBg);
 
+      // 物品图标（默认隐藏）
+      const icon = this.scene.add.sprite(cx, cy, 'potions_sheet', 0);
+      icon.setScale(1.2);
+      icon.setVisible(false);
+      this.container.add(icon);
+      this.slotIcons.push(icon);
+
       // 物品名
       const text = this.scene.add.text(cx, cy - 2, '', {
         fontSize: '9px', color: '#888888',
@@ -392,21 +402,44 @@ export class InventoryPanel extends BasePanel {
       const text = this.slotTexts[i];
       const countText = this.countTexts[i];
       const slotBg = this.slotBgs[i];
+      const icon = this.slotIcons[i];
 
       if (slot?.item) {
-        const name = slot.item.name.length > 4 ? slot.item.name.slice(0, 4) + '..' : slot.item.name;
-        text.setText(name);
-        // 装备按稀有度着色
-        if (slot.item.type === 'equipment' && slot.equipmentData) {
-          text.setColor(RARITY_COLORS[slot.equipmentData.rarity] ?? '#cccccc');
+        // 消耗品显示药水图标
+        if (slot.item.type === 'consumable') {
+          icon.setTexture('potions_sheet', getPotionFrame(slot.item.icon));
+          icon.setVisible(true);
+          text.setText('');
+        } else if (slot.item.type === 'material') {
+          // 材料显示宝石/材料图标
+          icon.setTexture('materials_sheet', getMaterialFrame(slot.item.icon));
+          icon.setVisible(true);
+          text.setText('');
         } else {
-          text.setColor('#cccccc');
+          // 装备：法师武器显示图标，其他显示名称
+          const equipData = slot.equipmentData;
+          const weaponIcon = equipData ? getMageWeaponIcon(equipData.type, equipData.icon) : null;
+          if (weaponIcon) {
+            icon.setTexture(weaponIcon.texture, weaponIcon.frame);
+            icon.setVisible(true);
+            text.setText('');
+          } else {
+            icon.setVisible(false);
+            const name = slot.item.name.length > 4 ? slot.item.name.slice(0, 4) + '..' : slot.item.name;
+            text.setText(name);
+          }
+          if (equipData) {
+            text.setColor(RARITY_COLORS[equipData.rarity] ?? '#cccccc');
+          } else {
+            text.setColor('#cccccc');
+          }
         }
         countText.setText(slot.item.isStackable && slot.count >= 1 ? `x${slot.count}` : '');
         slotBg.setStrokeStyle(1, 0x555577);
       } else {
         text.setText('');
         countText.setText('');
+        icon.setVisible(false);
         slotBg.setStrokeStyle(1, 0x444466);
       }
     }

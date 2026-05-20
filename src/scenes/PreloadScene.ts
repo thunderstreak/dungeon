@@ -71,10 +71,20 @@ export class PreloadScene extends Phaser.Scene {
     // 法杖icon精灵图 (16帧，一排6个，每帧32x32)
     this.load.spritesheet('staff_icons', 'sprites/weapons/staff-icons.png', { frameWidth: 32, frameHeight: 32 });
 
-    // 法师动画帧 (128x128每帧)
+    // 药水icon精灵图 (8x8网格，每帧32x32)
+    this.load.spritesheet('potions_sheet', 'sprites/consumables-potions_sheet.png', { frameWidth: 32, frameHeight: 32 });
+
+    // 材料icon精灵图 (8x8网格，每帧32x32)
+    this.load.spritesheet('materials_sheet', 'sprites/gems-materials_sheet.png', { frameWidth: 32, frameHeight: 32 });
+
+    // 法师动画帧 (96x96每帧，attack/spawn为128x128)
+    this.load.spritesheet('wizard_idle', 'sprites/Wizard/idle.png', { frameWidth: 96, frameHeight: 96 });
+    this.load.spritesheet('wizard_walk', 'sprites/Wizard/walk.png', { frameWidth: 96, frameHeight: 96 });
     this.load.spritesheet('wizard_attack', 'sprites/Wizard/attack.png', { frameWidth: 128, frameHeight: 128 });
-    this.load.spritesheet('wizard_death', 'sprites/Wizard/death.png', { frameWidth: 128, frameHeight: 128 });
-    this.load.spritesheet('wizard_walk', 'sprites/Wizard/walk.png', { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('wizard_hit', 'sprites/Wizard/hit.png', { frameWidth: 96, frameHeight: 96 });
+    this.load.spritesheet('wizard_death', 'sprites/Wizard/death.png', { frameWidth: 96, frameHeight: 96 });
+    this.load.spritesheet('wizard_jump', 'sprites/Wizard/jump.png', { frameWidth: 96, frameHeight: 96 });
+    this.load.spritesheet('wizard_spawn', 'sprites/Wizard/spawn.png', { frameWidth: 128, frameHeight: 128 });
 
     // 战士角色精灵表 (32x32每帧，15排)
     this.load.spritesheet('warrior', 'sprites/Adventurer-Sprite-Sheet.png', { frameWidth: 32, frameHeight: 32 });

@@ -21,6 +21,32 @@ const STAT_NAMES: Record<string, string> = {
   dodgeRate: '闪避', attackSpeed: '攻速', moveSpeed: '移速',
   castSpeed: '施法', hp: '生命', mp: '魔力',
 };
+const EFFECT_NAMES: Record<string, string> = {
+  damage_reduction: '减伤', physicalAttack_percent: '物攻',
+  knockback: '击退', maxHp_percent: '最大生命',
+  taunt: '嘲讽', lifesteal_percent: '生命偷取',
+  lowHp_attack_bonus: '低血量攻击加成', low_hp_damage_reduction: '低血量减伤',
+  rage_crit_rate: '怒气暴击', criticalDamage_percent: '暴击伤害',
+  bleed_chance: '流血几率', dodgeRate_percent: '闪避率',
+  sword_damage_percent: '剑类伤害', attackSpeed_percent: '攻击速度',
+  dodge_crit: '闪避暴击', true_damage_next_3: '真实伤害',
+  moveSpeed_percent: '移动速度', maxHp: '最大生命',
+  physicalAttack: '物理攻击', magicAttack: '魔法攻击',
+  physicalDefense: '物理防御', magicDefense: '魔法防御',
+  criticalRate: '暴击率', attackSpeed: '攻击速度',
+  slow_percent: '减速效果', freeze_chance: '冰冻几率',
+  freeze: '冰冻', burn: '灼烧', burn_on_hit: '攻击灼烧',
+  chain_lightning_chance: '闪电链几率', chain_chance: '连锁几率',
+  chain_count: '连锁数量', aoe_burn_chance: '范围灼烧',
+  thunder_crit_rate: '雷电暴击', thunder_double_damage_chance: '雷电双倍伤害',
+  ice_damage_percent: '冰系伤害', ice_cooldown_percent: '冰系冷却',
+  fire_damage_percent: '火系伤害', magicDamage_percent: '魔法伤害',
+  physicalDefense_percent: '物理防御', mp_regen_percent: '魔力回复',
+  mp_shield_ratio: '魔力护盾', stun_chance: '眩晕几率',
+  instant_kill_chance: '即死几率', on_kill_explode: '击杀爆炸',
+  aura_slow: '光环减速', aura_thunder_damage: '光环雷电伤害',
+  teleport: '传送', invincible: '无敌', freeze_all: '冰冻全体',
+};
 const SLOT_NAMES: Record<string, string> = {
   weapon: '武器', helmet: '头盔', armor: '胸甲', shield: '盾牌',
   belt: '腰带', boots: '鞋子', necklace: '项链',
@@ -220,7 +246,9 @@ export class Tooltip {
     }
     if (skill.effects) {
       for (const e of skill.effects) {
-        this.addDetailLine(`效果: +${e.value}% ${e.type} (${e.duration}秒)`);
+        const name = EFFECT_NAMES[e.type] ?? STAT_NAMES[e.type] ?? e.type;
+        const durationText = e.duration > 0 ? ` (${e.duration}秒)` : '';
+        this.addDetailLine(`效果: ${name} +${e.value}%${durationText}`);
       }
     }
     this.addDetailLine('');

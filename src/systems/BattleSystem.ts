@@ -99,6 +99,10 @@ export interface CombatEntity {
     dodgeRate: number;
     attackSpeed: number;
     moveSpeed: number;
+    lifesteal: number;
+    swordDamage: number;
+    iceDamage: number;
+    fireDamage: number;
   };
   buffManager: BuffManager;
   shieldHp: number; // 护盾值
@@ -123,6 +127,10 @@ export function createCombatEntityFromCharacter(character: Character): CombatEnt
       dodgeRate: character.stats.dodgeRate,
       attackSpeed: character.stats.attackSpeed,
       moveSpeed: character.stats.moveSpeed,
+      lifesteal: character.stats.lifesteal,
+      swordDamage: character.stats.swordDamage,
+      iceDamage: character.stats.iceDamage,
+      fireDamage: character.stats.fireDamage,
     },
     buffManager: new BuffManager(),
     shieldHp: 0,
@@ -149,6 +157,10 @@ export function createCombatEntityFromMonster(monster: MonsterDefinition, floorM
       dodgeRate: 0, // 怪物默认无闪避
       attackSpeed: stats.attackSpeed,
       moveSpeed: stats.moveSpeed,
+      lifesteal: 0,
+      swordDamage: 0,
+      iceDamage: 0,
+      fireDamage: 0,
     },
     buffManager: new BuffManager(),
     shieldHp: 0,
@@ -175,6 +187,10 @@ export function createCombatEntityFromBoss(boss: BossDefinition): CombatEntity {
       dodgeRate: 0,
       attackSpeed: stats.attackSpeed,
       moveSpeed: stats.moveSpeed,
+      lifesteal: 0,
+      swordDamage: 0,
+      iceDamage: 0,
+      fireDamage: 0,
     },
     buffManager: new BuffManager(),
     shieldHp: 0,

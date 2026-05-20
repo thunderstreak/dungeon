@@ -143,6 +143,11 @@ export interface CharacterStats {
   attackSpeed: number;
   castSpeed: number;
   moveSpeed: number;
+  // 被动技能加成属性
+  lifesteal: number;       // 生命偷取%
+  swordDamage: number;     // 剑类伤害%
+  iceDamage: number;       // 冰系伤害%
+  fireDamage: number;      // 火系伤害%
 }
 
 /** 已分配的属性点 (通过加点面板分配) */

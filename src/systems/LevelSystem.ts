@@ -165,6 +165,12 @@ export function recalculateStats(character: Character): void {
 
   // 施法速度基础100%
   stats.castSpeed = 100;
+
+  // 被动技能加成重置（由applyPassiveStats叠加）
+  stats.lifesteal = 0;
+  stats.swordDamage = 0;
+  stats.iceDamage = 0;
+  stats.fireDamage = 0;
 }
 
 // ==================== 创建初始角色 ====================
@@ -177,6 +183,7 @@ export function createCharacter(name: string, characterClass: 'warrior' | 'mage'
     physicalDefense: 0, magicDefense: 0,
     criticalRate: 0, criticalDamage: 150,
     dodgeRate: 0, attackSpeed: 100, castSpeed: 100, moveSpeed: 100,
+    lifesteal: 0, swordDamage: 0, iceDamage: 0, fireDamage: 0,
   };
 
   const character: Character = {

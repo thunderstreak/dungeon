@@ -7,6 +7,7 @@ import type { Character, EquipmentSlot } from '@/config/types';
 import { unequipItem } from '@/systems/EquipmentSystem';
 import { addEquipment } from '@/systems/InventorySystem';
 import { gameState } from '@/state/GameState';
+import { getMageWeaponIcon } from '@/config/weaponIcons';
 
 /** 槽位定义：slot + 标签 + 相对于角色中心的偏移 */
 const EQUIP_SLOTS: { slot: EquipmentSlot; label: string; ox: number; oy: number }[] = [
@@ -33,6 +34,7 @@ const RARITY_COLORS: Record<string, string> = {
 
 export class EquipmentPanel extends BasePanel {
   private slotTexts: Map<EquipmentSlot, Phaser.GameObjects.Text> = new Map();
+  private slotIcons: Map<EquipmentSlot, Phaser.GameObjects.Sprite> = new Map();
   private slotBgs: Map<EquipmentSlot, Phaser.GameObjects.Rectangle> = new Map();
   private character: Character | null = null;
 
@@ -117,6 +119,13 @@ export class EquipmentPanel extends BasePanel {
       }).setOrigin(0.5);
       this.container.add(itemText);
       this.slotTexts.set(slot, itemText);
+
+      // 装备图标（默认隐藏，法师武器时显示）
+      const icon = this.scene.add.sprite(sx - 18, sy + 4, 'staff_icons', 0);
+      icon.setScale(0.6);
+      icon.setVisible(false);
+      this.container.add(icon);
+      this.slotIcons.set(slot, icon);
     }
   }
 
@@ -157,17 +166,33 @@ export class EquipmentPanel extends BasePanel {
   update(character: Character): void {
     this.character = character;
     // 更新装备槽位
-    for (const { slot } of EQUIP_SLOTS) {
+    for (const { slot, ox } of EQUIP_SLOTS) {
       const equipped = character.equipment[slot];
       const text = this.slotTexts.get(slot);
+      const icon = this.slotIcons.get(slot);
       if (!text) continue;
 
-      if (equipped) {
-        text.setText(equipped.name.length > 5 ? equipped.name.slice(0, 5) + '..' : equipped.name);
+      // 法师武器显示图标
+      const weaponIcon = equipped ? getMageWeaponIcon(equipped.type, equipped.icon) : null;
+      if (weaponIcon && icon && equipped) {
+        icon.setTexture(weaponIcon.texture, weaponIcon.frame);
+        icon.setVisible(true);
+        // 有图标时文字右移
+        const sx = CANVAS_WIDTH / 2 + ox;
+        text.setX(sx + 8);
+        text.setText(equipped.name.length > 4 ? equipped.name.slice(0, 4) + '..' : equipped.name);
         text.setColor(RARITY_COLORS[equipped.rarity] ?? '#cccccc');
       } else {
-        text.setText('空');
-        text.setColor('#555555');
+        if (icon) icon.setVisible(false);
+        const sx = CANVAS_WIDTH / 2 + ox;
+        text.setX(sx);
+        if (equipped) {
+          text.setText(equipped.name.length > 5 ? equipped.name.slice(0, 5) + '..' : equipped.name);
+          text.setColor(RARITY_COLORS[equipped.rarity] ?? '#cccccc');
+        } else {
+          text.setText('空');
+          text.setColor('#555555');
+        }
       }
     }
   }

@@ -9,6 +9,7 @@ class GameState {
   dungeonState: DungeonState | null = null;
   currentFloor = 1;
   currentRoom = 0;
+  currentSaveSlot = 0;
 
   setCharacter(character: Character): void {
     this.clear();

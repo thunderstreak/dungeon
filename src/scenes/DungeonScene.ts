@@ -10,7 +10,7 @@ import { Monster } from '@/entities/Monster';
 import { Boss } from '@/entities/Boss';
 import { showNotification } from '@/ui/NotificationToast';
 import { calcPhysicalDamage, applyDamage } from '@/systems/BattleSystem';
-import { executeSkillDamage, isSkillReady } from '@/systems/SkillSystem';
+import { executeSkillDamage, isSkillReady, getPassiveTriggerEffects } from '@/systems/SkillSystem';
 import { ALL_SKILLS } from '@/data/skills';
 import type { Equipment, SkillSlot } from '@/config/types';
 import { calculateMonsterDrop, PityCounter } from '@/systems/DropSystem';
@@ -331,6 +331,35 @@ export class DungeonScene extends Phaser.Scene {
       monster.takeDamage(result.finalDamage, result.isCritical);
       monster.flashHit();
 
+      // 被动技能触发效果
+      if (!result.isDodged) {
+        const triggers = getPassiveTriggerEffects(this.player.character);
+        for (const trigger of triggers) {
+          if (Math.random() * 100 >= trigger.value) continue;
+          const validDebuffs: Record<string, import('@/config/types').DebuffType> = {
+            bleed_chance: 'bleed',
+            freeze_chance: 'freeze',
+            stun_chance: 'stun',
+            burn_on_hit: 'burn',
+          };
+          const debuffType = validDebuffs[trigger.type];
+          if (debuffType) {
+            monster.combatEntity.buffManager.addBuff({
+              id: `passive_${trigger.type}_${monster.combatEntity.id}`,
+              name: trigger.type,
+              type: 'debuff',
+              debuffType,
+              duration: 3,
+              maxDuration: 3,
+              value: 1,
+              maxStack: 1,
+              source: 'passive',
+              icon: 'passive',
+            });
+          }
+        }
+      }
+
       // 屏幕震动
       this.cameras.main.shake(100, 0.005);
 
@@ -353,7 +382,7 @@ export class DungeonScene extends Phaser.Scene {
     const config = colorMap[skillId] ?? { color: 0xaa44ff, radius: 4, speed: 450 };
 
     const startX = this.player.container.x;
-    const startY = this.player.container.y;
+    const startY = this.player.container.y - 40; // 从身体/手部位置发射
     const endX = target.container.x;
     const endY = target.container.y;
 
@@ -396,7 +425,7 @@ export class DungeonScene extends Phaser.Scene {
     if (skillData.damage?.type === 'magic') {
       // 远程魔法：先弹道再伤害（无距离限制）
       this.fireProjectile(target, skillSlot.skillId, () => {
-        const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level);
+        const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level, this.player.character);
         if (result) {
           if (target instanceof Monster) {
             target.takeDamage(result.finalDamage, result.isCritical, true);
@@ -410,7 +439,7 @@ export class DungeonScene extends Phaser.Scene {
       });
     } else {
       // 近战物理
-      const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level);
+      const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level, this.player.character);
       if (result) {
         if (target instanceof Monster) {
           target.takeDamage(result.finalDamage, result.isCritical, true);

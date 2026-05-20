@@ -49,6 +49,7 @@ export class MainMenuScene extends Phaser.Scene {
     continueBtn.on('pointerdown', () => {
       const data = loadFromSlot(0) as { character?: Character } | null;
       if (data?.character) {
+        gameState.currentSaveSlot = 0;
         gameState.setCharacter(data.character);
         this.scene.stop('UIScene');
         this.scene.start('TownScene');

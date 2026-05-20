@@ -142,7 +142,7 @@ export class TownScene extends Phaser.Scene {
   private doAutoSave(): void {
     const char = gameState.getCharacter();
     if (char) {
-      saveToSlot(0, { character: char, timestamp: Date.now(), version: '1.0' });
+      saveToSlot(gameState.currentSaveSlot, { character: char, timestamp: Date.now(), version: '1.0' });
     }
   }
 

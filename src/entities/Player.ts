@@ -89,15 +89,14 @@ export class Player {
 
     // 根据职业选择渲染方式
     this.isMage = character.class === 'mage';
-    const size = TILE_SIZE - 4;
 
     if (this.isMage) {
       // 确保法师动画已创建（可能在任意场景中首次创建Player）
       this.ensureWizardAnims(scene);
       // 法师使用精灵图，origin设为底部中心（脚部对齐）
-      this.sprite = scene.add.sprite(0, 0, 'wizard');
+      this.sprite = scene.add.sprite(0, 0, 'wizard_idle');
       this.sprite.setOrigin(0.5, 1.0);
-      this.sprite.setScale(TILE_SIZE / 128, TILE_SIZE / 128);
+      this.sprite.setScale(0.8, 0.8);
       this.sprite.play('wizard_idle');
       this.container.add(this.sprite);
       // body 保留为空容器，避免 null 检查
@@ -116,19 +115,24 @@ export class Player {
       this.body.setVisible(false);
     }
 
+    // 血条和名字的Y偏移（根据精灵实际高度调整）
+    const hpBarY = this.isMage ? -80 : -38;
+    const nameY = this.isMage ? -90 : -48;
+    const barWidth = TILE_SIZE - 4;
+
     // 血条背景
-    this.hpBarBg = scene.add.rectangle(0, -size / 2 - 8, TILE_SIZE - 4, 4, 0x333333);
+    this.hpBarBg = scene.add.rectangle(0, hpBarY, barWidth, 4, 0x333333);
     this.hpBarBg.setOrigin(0.5, 0.5);
     this.container.add(this.hpBarBg);
 
     // 血条填充
-    this.hpBarFill = scene.add.rectangle(0, -size / 2 - 8, TILE_SIZE - 4, 4, 0x44dd44);
+    this.hpBarFill = scene.add.rectangle(0, hpBarY, barWidth, 4, 0x44dd44);
     this.hpBarFill.setOrigin(0, 0.5);
-    this.hpBarFill.setPosition(-(TILE_SIZE - 4) / 2, -size / 2 - 8);
+    this.hpBarFill.setPosition(-barWidth / 2, hpBarY);
     this.container.add(this.hpBarFill);
 
     // 名字
-    this.nameText = scene.add.text(0, -size / 2 - 16, character.name, {
+    this.nameText = scene.add.text(0, nameY, character.name, {
       fontSize: '11px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -368,9 +372,18 @@ export class Player {
         const absDy = Math.abs(dy);
 
         if (this.isMage) {
+          let flipX = false;
+          if (dx === 0 && dy !== 0) {
+            // 纯垂直移动，向下时镜像
+            flipX = dy > 0;
+          } else {
+            // 水平或对角线，统一用水平方向决定朝向
+            flipX = dx < 0;
+          }
           if (!curAnim || curAnim.key !== 'wizard_walk') {
             this.sprite.play('wizard_walk', true);
           }
+          this.sprite.setFlipX(flipX);
         } else {
           // 战士：-Y用run_up，+Y用镜像run（向左跑），水平用run+镜像
           let walkKey = 'warrior_run';
@@ -400,10 +413,7 @@ export class Player {
         if (!curAnim || curAnim.key !== idleKey) {
           this.sprite.play(idleKey, true);
         }
-        // 停止时重置镜像
-        if (!this.isMage) {
-          this.sprite.setFlipX(false);
-        }
+        // 停止时保持最后朝向，不重置镜像
       }
       return;
     }
@@ -467,14 +477,24 @@ export class Player {
     if (Player.wizardAnimsCreated) return;
     Player.wizardAnimsCreated = true;
 
-    // 所有动画从独立精灵表加载 (128x128每帧)
-    scene.anims.create({ key: 'wizard_idle', frames: scene.anims.generateFrameNumbers('wizard_walk', { start: 0, end: 0 }), frameRate: 1, repeat: -1 });
-    scene.anims.create({ key: 'wizard_walk', frames: scene.anims.generateFrameNumbers('wizard_walk', { start: 0, end: 5 }), frameRate: 10, repeat: -1 });
-    scene.anims.create({ key: 'wizard_attack', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 7 }), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_spell', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 7 }), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_buff', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 7 }), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_hurt', frames: scene.anims.generateFrameNumbers('wizard_death', { start: 0, end: 0 }), frameRate: 1, repeat: 0 });
-    scene.anims.create({ key: 'wizard_death', frames: scene.anims.generateFrameNumbers('wizard_death', { start: 0, end: 17 }), frameRate: 10, repeat: 0 });
+    // idle: 50帧 (96x96)，取第0帧作为待机
+    scene.anims.create({ key: 'wizard_idle', frames: scene.anims.generateFrameNumbers('wizard_idle', { start: 0, end: 0 }), frameRate: 1, repeat: -1 });
+    // walk: 10帧 (96x96)
+    scene.anims.create({ key: 'wizard_walk', frames: scene.anims.generateFrameNumbers('wizard_walk', { start: 0, end: 9 }), frameRate: 10, repeat: -1 });
+    // attack: 47帧 (128x128)
+    scene.anims.create({ key: 'wizard_attack', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 46 }), frameRate: 20, repeat: 0 });
+    // spell: 复用attack
+    scene.anims.create({ key: 'wizard_spell', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 46 }), frameRate: 20, repeat: 0 });
+    // buff: 复用attack
+    scene.anims.create({ key: 'wizard_buff', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 46 }), frameRate: 20, repeat: 0 });
+    // hurt: hit 9帧 (96x96)
+    scene.anims.create({ key: 'wizard_hurt', frames: scene.anims.generateFrameNumbers('wizard_hit', { start: 0, end: 8 }), frameRate: 12, repeat: 0 });
+    // death: 52帧 (96x96)
+    scene.anims.create({ key: 'wizard_death', frames: scene.anims.generateFrameNumbers('wizard_death', { start: 0, end: 51 }), frameRate: 15, repeat: 0 });
+    // jump: 12帧 (96x96)
+    scene.anims.create({ key: 'wizard_jump', frames: scene.anims.generateFrameNumbers('wizard_jump', { start: 0, end: 11 }), frameRate: 12, repeat: 0 });
+    // spawn: 20帧 (128x128)
+    scene.anims.create({ key: 'wizard_spawn', frames: scene.anims.generateFrameNumbers('wizard_spawn', { start: 0, end: 19 }), frameRate: 15, repeat: 0 });
   }
 
   private ensureWarriorAnims(scene: Phaser.Scene): void {

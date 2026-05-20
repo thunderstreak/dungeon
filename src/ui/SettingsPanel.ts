@@ -109,7 +109,7 @@ export class SettingsPanel extends BasePanel {
 
   private doSave(): void {
     const character = gameState.getCharacter();
-    const ok = saveToSlot(0, { character, timestamp: Date.now(), version: '1.0' });
+    const ok = saveToSlot(gameState.currentSaveSlot, { character, timestamp: Date.now(), version: '1.0' });
     if (ok) {
       showNotification(this.scene, '存档成功!', '#44ff44');
     } else {
@@ -226,6 +226,7 @@ export class SettingsPanel extends BasePanel {
   private loadSlot(slot: number): void {
     const data = loadFromSlot(slot) as any;
     if (data?.character) {
+      gameState.currentSaveSlot = slot;
       gameState.setCharacter(data.character);
     } else {
       showNotification(this.scene, '读档失败', '#ff4444');

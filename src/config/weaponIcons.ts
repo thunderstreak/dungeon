@@ -21,17 +21,23 @@ export const STAFF_ICON_MAP: Record<string, number> = {
   'weapon_short_staff_5': 13, // 秘银短杖
   'weapon_short_staff_6': 14, // 精金短杖
   'weapon_short_staff_7': 15, // 魔化短杖及以上
+
+  // 魔杖 (帧 16-17，共2帧)
+  'weapon_wand_0': 16,
+  'weapon_wand_1': 17,
 };
 
 /** 法杖类型基础icon前缀 */
 export const STAFF_TYPE_PREFIX = {
   long_staff: 'weapon_long_staff',
   short_staff: 'weapon_short_staff',
+  wand: 'weapon_wand',
 } as const;
 
 /** 根据法杖等级获取icon key */
-export function getStaffIconKey(staffType: 'long_staff' | 'short_staff', level: number): string {
+export function getStaffIconKey(staffType: 'long_staff' | 'short_staff' | 'wand', level: number): string {
   const prefix = STAFF_TYPE_PREFIX[staffType];
+  if (staffType === 'wand') return `${prefix}_0`;
   // 等级分段：1-10, 15-25, 30-40, 45-60
   if (level <= 10) return `${prefix}_0`;
   if (level <= 25) return `${prefix}_1`;
@@ -42,4 +48,12 @@ export function getStaffIconKey(staffType: 'long_staff' | 'short_staff', level: 
 /** 获取法杖icon帧索引 */
 export function getStaffIconFrame(iconKey: string): number {
   return STAFF_ICON_MAP[iconKey] ?? 0;
+}
+
+/** 获取法师武器的精灵图纹理和帧（返回null表示非法师武器） */
+export function getMageWeaponIcon(equipmentType: string, iconKey: string): { texture: string; frame: number } | null {
+  if (equipmentType === 'long_staff' || equipmentType === 'short_staff' || equipmentType === 'wand') {
+    return { texture: 'staff_icons', frame: getStaffIconFrame(iconKey) };
+  }
+  return null;
 }

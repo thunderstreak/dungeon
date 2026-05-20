@@ -4,6 +4,9 @@ import Phaser from 'phaser';
 import type { EquipmentRarity } from '@/config/types';
 import { RARITY_COLORS } from '@/config/constants';
 import { isoToScreen, getDepthSort } from '@/utils/IsometricUtils';
+import { getPotionFrame, getMaterialFrame } from '@/ui/PotionIcons';
+import { getEquipmentById } from '@/data/equipment';
+import { getMageWeaponIcon } from '@/config/weaponIcons';
 
 /** 地面掉落物品数据 */
 export interface GroundLootItem {
@@ -39,7 +42,31 @@ export class GroundLoot {
     this.container.setAlpha(0);
 
     const color = RARITY_COLORS[item.rarity] ?? '#ffffff';
-    this.nameText = scene.add.text(0, 0, item.name, {
+
+    // 物品图标（显示在名称上方）
+    if (item.type === 'potion') {
+      const frame = getPotionFrame(item.itemId);
+      const icon = scene.add.sprite(0, -14, 'potions_sheet', frame);
+      icon.setScale(0.65);
+      this.container.add(icon);
+    } else if (item.type === 'material') {
+      const frame = getMaterialFrame(item.itemId);
+      const icon = scene.add.sprite(0, -14, 'materials_sheet', frame);
+      icon.setScale(0.65);
+      this.container.add(icon);
+    } else if (item.type === 'equipment') {
+      const template = getEquipmentById(item.itemId);
+      if (template) {
+        const weaponIcon = getMageWeaponIcon(template.type, template.icon);
+        if (weaponIcon) {
+          const icon = scene.add.sprite(0, -14, weaponIcon.texture, weaponIcon.frame);
+          icon.setScale(0.65);
+          this.container.add(icon);
+        }
+      }
+    }
+
+    this.nameText = scene.add.text(0, 4, item.name, {
       fontSize: '11px',
       color,
       fontStyle: 'bold',

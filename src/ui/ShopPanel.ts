@@ -6,10 +6,13 @@ import { BasePanel } from './BasePanel';
 import { gameState } from '@/state/GameState';
 import { type ShopItem } from '@/data/npcs';
 import { getPotionById, getMaterialById } from '@/data/items';
+import { getEquipmentById } from '@/data/equipment';
 import type { Item } from '@/config/types';
 import { spendGold, addItem } from '@/systems/InventorySystem';
 import { createShopState, getItemPrice, canBuyItem, getRemainingLimit, type ShopState, type ShopItemState } from '@/systems/ShopSystem';
 import { showNotification } from '@/ui/NotificationToast';
+import { getPotionFrame, getMaterialFrame } from './PotionIcons';
+import { getMageWeaponIcon } from '@/config/weaponIcons';
 
 /** 从物品ID获取Item对象 */
 function getItemById(id: string): Item | null {
@@ -35,6 +38,18 @@ function getItemById(id: string): Item | null {
       description: mat.description,
       isStackable: mat.isStackable,
       maxStack: mat.maxStack,
+    };
+  }
+  const equip = getEquipmentById(id);
+  if (equip) {
+    return {
+      id: equip.id,
+      name: equip.name,
+      type: 'equipment',
+      icon: equip.icon,
+      description: equip.specialEffect ?? '',
+      isStackable: false,
+      maxStack: 1,
     };
   }
   return null;
@@ -188,9 +203,32 @@ export class ShopPanel extends BasePanel {
     this.scrollContainer.add(rowBg);
     this.itemElements.push(rowBg);
 
+    // 物品图标（消耗品/材料/法师武器）
+    let nameX = px + 15;
+    if (itemDef && itemDef.icon) {
+      let iconSprite: Phaser.GameObjects.Sprite | null = null;
+      if (itemDef.type === 'consumable') {
+        iconSprite = this.scene.add.sprite(px + 15, y + itemH / 2, 'potions_sheet', getPotionFrame(itemDef.icon));
+      } else if (itemDef.type === 'material') {
+        iconSprite = this.scene.add.sprite(px + 15, y + itemH / 2, 'materials_sheet', getMaterialFrame(itemDef.icon));
+      } else if (itemDef.type === 'equipment') {
+        const equip = getEquipmentById(itemDef.id);
+        const weaponIcon = equip ? getMageWeaponIcon(equip.type, equip.icon) : null;
+        if (weaponIcon) {
+          iconSprite = this.scene.add.sprite(px + 15, y + itemH / 2, weaponIcon.texture, weaponIcon.frame);
+        }
+      }
+      if (iconSprite) {
+        iconSprite.setScale(0.7);
+        this.scrollContainer.add(iconSprite);
+        this.itemElements.push(iconSprite);
+        nameX = px + 32;
+      }
+    }
+
     // 物品名称
     const rarityColor = itemDef ? (RARITY_COLORS[(itemDef as any).rarity] ?? '#cccccc') : '#cccccc';
-    const nameText = this.scene.add.text(px + 15, y + itemH / 2, itemDef?.name ?? shopItem.itemId, {
+    const nameText = this.scene.add.text(nameX, y + itemH / 2, itemDef?.name ?? shopItem.itemId, {
       fontSize: '12px', color: rarityColor,
     }).setOrigin(0, 0.5);
     this.scrollContainer.add(nameText);

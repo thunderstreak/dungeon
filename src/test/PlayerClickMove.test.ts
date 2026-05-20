@@ -113,6 +113,10 @@ const character: Character = {
     attackSpeed: 100,
     castSpeed: 100,
     moveSpeed: 100,
+    lifesteal: 0,
+    swordDamage: 0,
+    iceDamage: 0,
+    fireDamage: 0,
   },
   equipment: {
     weapon: null, helmet: null, armor: null, shield: null, belt: null, boots: null,

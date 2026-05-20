@@ -147,7 +147,7 @@ export function useSkill(
 
   // 如果有攻击者和目标，执行技能伤害
   if (attacker && target && skillData.damage) {
-    executeSkillDamage(attacker, target, skillId, skillSlot.level);
+    executeSkillDamage(attacker, target, skillId, skillSlot.level, character);
   }
 
   eventBus.emit('skill:cast', { skillId, targetId: target?.id ?? null });
@@ -189,6 +189,7 @@ export function executeSkillDamage(
   defender: CombatEntity,
   skillId: string,
   skillLevel: number,
+  attackerCharacter?: Character,
 ): DamageResult | null {
   const skillData = ALL_SKILLS.find(s => s.id === skillId);
   if (!skillData?.damage) return null;
@@ -248,8 +249,107 @@ export function executeSkillDamage(
     }
   }
 
+  // 被动技能触发效果
+  if (attackerCharacter && !result.isDodged) {
+    const triggers = getPassiveTriggerEffects(attackerCharacter);
+    for (const trigger of triggers) {
+      if (Math.random() * 100 >= trigger.value) continue; // 概率判定
+      const validDebuffs: Record<string, import('@/config/types').DebuffType> = {
+        bleed_chance: 'bleed',
+        freeze_chance: 'freeze',
+        stun_chance: 'stun',
+        burn_on_hit: 'burn',
+      };
+      const debuffType = validDebuffs[trigger.type];
+      if (debuffType) {
+        defender.buffManager.addBuff({
+          id: `passive_${trigger.type}_${defender.id}`,
+          name: trigger.type,
+          type: 'debuff',
+          debuffType,
+          duration: 3,
+          maxDuration: 3,
+          value: 1,
+          maxStack: 1,
+          source: 'passive',
+          icon: 'passive',
+        });
+      }
+    }
+  }
+
   eventBus.emit('skill:hit', { skillId, targetId: defender.id, damage: result.finalDamage });
   return result;
+}
+
+// ==================== 被动技能属性加成 ====================
+
+/** 被动效果type → character.stats字段映射 */
+const PASSIVE_STAT_MAP: Record<string, { stat: string; mode: 'percent' | 'flat' }> = {
+  maxHp_percent: { stat: 'maxHp', mode: 'percent' },
+  physicalAttack_percent: { stat: 'physicalAttack', mode: 'percent' },
+  magicAttack_percent: { stat: 'magicAttack', mode: 'percent' },
+  physicalDefense_percent: { stat: 'physicalDefense', mode: 'percent' },
+  magicDefense_percent: { stat: 'magicDefense', mode: 'percent' },
+  criticalDamage_percent: { stat: 'criticalDamage', mode: 'percent' },
+  dodgeRate_percent: { stat: 'dodgeRate', mode: 'percent' },
+  attackSpeed_percent: { stat: 'attackSpeed', mode: 'percent' },
+  moveSpeed_percent: { stat: 'moveSpeed', mode: 'percent' },
+  mp_regen_percent: { stat: 'maxMp', mode: 'percent' },
+  lifesteal_percent: { stat: 'lifesteal', mode: 'percent' },
+  sword_damage_percent: { stat: 'swordDamage', mode: 'percent' },
+  ice_damage_percent: { stat: 'iceDamage', mode: 'percent' },
+  fire_damage_percent: { stat: 'fireDamage', mode: 'percent' },
+};
+
+/** 应用被动技能的永久属性加成到角色stats */
+export function applyPassiveStats(character: Character): void {
+  const stats = character.stats;
+
+  for (const skillSlot of character.skills) {
+    const skillData = ALL_SKILLS.find(s => s.id === skillSlot.skillId);
+    if (!skillData?.effects) continue;
+
+    for (const effect of skillData.effects) {
+      // 只处理永久效果（duration === -1）
+      if (effect.duration !== -1) continue;
+
+      const mapping = PASSIVE_STAT_MAP[effect.type];
+      if (!mapping) continue;
+
+      const key = mapping.stat as keyof typeof stats;
+      const baseVal = stats[key] as number;
+
+      if (mapping.mode === 'percent') {
+        stats[key] = baseVal * (1 + effect.value / 100) as typeof stats[typeof key];
+      } else {
+        stats[key] = baseVal + effect.value as typeof stats[typeof key];
+      }
+    }
+  }
+
+  // HP/MP同步
+  stats.hp = stats.maxHp;
+  stats.mp = stats.maxMp;
+}
+
+// ==================== 战斗触发效果 ====================
+
+/** 获取角色已学习被动技能的所有触发效果 */
+export function getPassiveTriggerEffects(character: Character): Array<{ type: string; value: number }> {
+  const triggers: Array<{ type: string; value: number }> = [];
+  for (const skillSlot of character.skills) {
+    const skillData = ALL_SKILLS.find(s => s.id === skillSlot.skillId);
+    if (!skillData?.effects) continue;
+    for (const effect of skillData.effects) {
+      if (effect.duration !== -1) continue;
+      // 触发类效果（非属性加成）
+      if (!PASSIVE_STAT_MAP[effect.type]) {
+        triggers.push({ type: effect.type, value: effect.value });
+      }
+    }
+  }
+  return triggers;
 }
 
 // ==================== 武器精通 ====================

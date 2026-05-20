@@ -208,14 +208,14 @@ export class SkillPanel extends BasePanel {
     const nameColor = opts.locked ? '#555577' : '#ffffff';
     const name = this.scene.add.text(rowX + 4, y + 6, skill.name, {
       fontSize: '12px', color: nameColor,
-    });
+    }).setOrigin(0, 0.5);
     this.scrollContainer.add(name);
 
     // 等级/需求文本
     const lvlColor = opts.locked ? '#444466' : '#aaaaaa';
     const lvl = this.scene.add.text(rowX + 120, y + 6, opts.levelText, {
       fontSize: '11px', color: lvlColor,
-    });
+    }).setOrigin(0, 0.5);
     this.scrollContainer.add(lvl);
 
     // 操作按钮

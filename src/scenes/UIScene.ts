@@ -185,6 +185,10 @@ export class UIScene extends Phaser.Scene {
 
     // 通过DungeonScene处理（区分弹道/瞬发）
     (gameScene as any).castSkillOnTarget(skillSlot, target);
+
+    // 短暂高亮选中的技能槽
+    this.skillBar.setSelected(index);
+    this.time.delayedCall(300, () => this.skillBar.setSelected(-1));
   }
 
   /** 处理物品快捷键 */
