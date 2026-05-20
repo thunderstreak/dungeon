@@ -71,8 +71,10 @@ export class PreloadScene extends Phaser.Scene {
     // 法杖icon精灵图 (16帧，一排6个，每帧32x32)
     this.load.spritesheet('staff_icons', 'sprites/weapons/staff-icons.png', { frameWidth: 32, frameHeight: 32 });
 
-    // 法师角色精灵表 (128x128每帧)
-    this.load.spritesheet('wizard', 'sprites/Wizard-Sheet.png', { frameWidth: 128, frameHeight: 128 });
+    // 法师动画帧 (128x128每帧)
+    this.load.spritesheet('wizard_attack', 'sprites/Wizard/attack.png', { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('wizard_death', 'sprites/Wizard/death.png', { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet('wizard_walk', 'sprites/Wizard/walk.png', { frameWidth: 128, frameHeight: 128 });
 
     // 战士角色精灵表 (32x32每帧，15排)
     this.load.spritesheet('warrior', 'sprites/Adventurer-Sprite-Sheet.png', { frameWidth: 32, frameHeight: 32 });

@@ -467,19 +467,14 @@ export class Player {
     if (Player.wizardAnimsCreated) return;
     Player.wizardAnimsCreated = true;
 
-    const COLS = 21;
-    const wiz = (row: number, start: number, end: number) => {
-      const s = row * COLS + start;
-      const e = row * COLS + end;
-      return scene.anims.generateFrameNumbers('wizard', { start: s, end: e });
-    };
-    scene.anims.create({ key: 'wizard_idle', frames: wiz(0, 0, 7), frameRate: 10, repeat: -1 });
-    scene.anims.create({ key: 'wizard_walk', frames: wiz(1, 0, 7), frameRate: 10, repeat: -1 });
-    scene.anims.create({ key: 'wizard_spell', frames: wiz(2, 0, 12), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_attack', frames: wiz(3, 0, 12), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_buff', frames: wiz(4, 0, 16), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_hurt', frames: wiz(5, 0, 4), frameRate: 15, repeat: 0 });
-    scene.anims.create({ key: 'wizard_death', frames: wiz(6, 0, 9), frameRate: 10, repeat: 0 });
+    // 所有动画从独立精灵表加载 (128x128每帧)
+    scene.anims.create({ key: 'wizard_idle', frames: scene.anims.generateFrameNumbers('wizard_walk', { start: 0, end: 0 }), frameRate: 1, repeat: -1 });
+    scene.anims.create({ key: 'wizard_walk', frames: scene.anims.generateFrameNumbers('wizard_walk', { start: 0, end: 5 }), frameRate: 10, repeat: -1 });
+    scene.anims.create({ key: 'wizard_attack', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 7 }), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_spell', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 7 }), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_buff', frames: scene.anims.generateFrameNumbers('wizard_attack', { start: 0, end: 7 }), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_hurt', frames: scene.anims.generateFrameNumbers('wizard_death', { start: 0, end: 0 }), frameRate: 1, repeat: 0 });
+    scene.anims.create({ key: 'wizard_death', frames: scene.anims.generateFrameNumbers('wizard_death', { start: 0, end: 17 }), frameRate: 10, repeat: 0 });
   }
 
   private ensureWarriorAnims(scene: Phaser.Scene): void {
