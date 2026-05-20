@@ -403,7 +403,7 @@ export class Player {
     if (Player.wizardAnimsCreated) return;
     Player.wizardAnimsCreated = true;
 
-    const COLS = 20;
+    const COLS = 21;
     const wiz = (row: number, start: number, end: number) => {
       const s = row * COLS + start;
       const e = row * COLS + end;
