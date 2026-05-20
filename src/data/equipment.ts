@@ -242,7 +242,7 @@ function generateBlades(): EquipmentTemplate[] {
   for (const d of BLADE_LEVELS) {
     result.push(...makeWB('blade', 'weapon', 'blade', d.level, d.name, [
       stat('physicalAttack', 'flat', d.atk[0]),
-      stat('physicalAttackMax', 'flat', d.atk[1]),
+
       stat('attackSpeed', 'percent', 25),
       stat('criticalRate', 'percent', 8),
     ], d.dur, 'weapon_blade'));
@@ -251,7 +251,7 @@ function generateBlades(): EquipmentTemplate[] {
   for (const d of BLADE_PURPLES) {
     result.push(makePurple('blade', 'weapon', 'blade', d.level, `${d.name}套装`, [
       stat('physicalAttack', 'flat', d.atk[0]),
-      stat('physicalAttackMax', 'flat', d.atk[1]),
+
       stat('attackSpeed', 'percent', 25),
       stat('criticalRate', 'percent', 10),
     ], d.dur, 'weapon_blade'));
@@ -295,7 +295,7 @@ function generateSwords(): EquipmentTemplate[] {
   for (const d of SWORD_LEVELS) {
     result.push(...makeWB('sword', 'weapon', 'sword', d.level, d.name, [
       stat('physicalAttack', 'flat', d.atk[0]),
-      stat('physicalAttackMax', 'flat', d.atk[1]),
+
       stat('attackSpeed', 'percent', 0),
       stat('criticalRate', 'percent', 5),
     ], d.dur, 'weapon_sword'));
@@ -303,7 +303,7 @@ function generateSwords(): EquipmentTemplate[] {
   for (const d of SWORD_PURPLES) {
     result.push(makePurple('sword', 'weapon', 'sword', d.level, `${d.name}套装`, [
       stat('physicalAttack', 'flat', d.atk[0]),
-      stat('physicalAttackMax', 'flat', d.atk[1]),
+
       stat('attackSpeed', 'percent', 0),
       stat('criticalRate', 'percent', 7),
     ], d.dur, 'weapon_sword'));
@@ -347,7 +347,7 @@ function generateAxes(): EquipmentTemplate[] {
   for (const d of AXE_LEVELS) {
     result.push(...makeWB('axe', 'weapon', 'axe', d.level, d.name, [
       stat('physicalAttack', 'flat', d.atk[0]),
-      stat('physicalAttackMax', 'flat', d.atk[1]),
+
       stat('attackSpeed', 'percent', -20),
       stat('criticalRate', 'percent', 3),
     ], d.dur, 'weapon_axe'));
@@ -355,7 +355,7 @@ function generateAxes(): EquipmentTemplate[] {
   for (const d of AXE_PURPLES) {
     result.push(makePurple('axe', 'weapon', 'axe', d.level, `${d.name}套装`, [
       stat('physicalAttack', 'flat', d.atk[0]),
-      stat('physicalAttackMax', 'flat', d.atk[1]),
+
       stat('attackSpeed', 'percent', -20),
       stat('criticalRate', 'percent', 5),
     ], d.dur, 'weapon_axe'));
@@ -934,41 +934,33 @@ function makePinkOrangeArmor(
 const WARRIOR_PO_WEAPONS: EquipmentTemplate[] = [
   // 刀类
   ...makePinkOrange('berserker', '狂战士之怒', 'weapon', 'blade', 30, [
-    stat('physicalAttack', 'flat', 50), stat('physicalAttackMax', 'flat', 67),
+    stat('physicalAttack', 'flat', 50),
     stat('attackSpeed', 'percent', 25), stat('criticalRate', 'percent', 15),
   ], 47, '攻击吸血5%', 'weapon_blade', 'set_berserker', '狂战士套装'),
   ...makePinkOrange('sword_saint', '剑圣传说', 'weapon', 'blade', 40, [
-    stat('physicalAttack', 'flat', 69), stat('physicalAttackMax', 'flat', 92),
     stat('attackSpeed', 'percent', 25), stat('criticalRate', 'percent', 18),
   ], 49, '暴击伤害+50%', 'weapon_blade', 'set_sword_saint', '剑圣套装'),
   ...makePinkOrange('blade_god', '刀神降临', 'weapon', 'blade', 50, [
-    stat('physicalAttack', 'flat', 90), stat('physicalAttackMax', 'flat', 120),
     stat('attackSpeed', 'percent', 25), stat('criticalRate', 'percent', 20),
   ], 50, '连击数+3', 'weapon_blade', 'set_blade_god', '刀神套装'),
   // 剑类
   ...makePinkOrange('berserker', '狂战士之怒', 'weapon', 'sword', 30, [
-    stat('physicalAttack', 'flat', 58), stat('physicalAttackMax', 'flat', 78),
     stat('attackSpeed', 'percent', 0), stat('criticalRate', 'percent', 12),
   ], 47, '攻击吸血5%', 'weapon_sword', 'set_berserker', '狂战士套装'),
   ...makePinkOrange('sword_saint', '剑圣传说', 'weapon', 'sword', 40, [
-    stat('physicalAttack', 'flat', 80), stat('physicalAttackMax', 'flat', 107),
     stat('attackSpeed', 'percent', 0), stat('criticalRate', 'percent', 15),
   ], 49, '暴击伤害+50%', 'weapon_sword', 'set_sword_saint', '剑圣套装'),
   ...makePinkOrange('blade_god', '刀神降临', 'weapon', 'sword', 50, [
-    stat('physicalAttack', 'flat', 105), stat('physicalAttackMax', 'flat', 140),
     stat('attackSpeed', 'percent', 0), stat('criticalRate', 'percent', 17),
   ], 50, '连击数+3', 'weapon_sword', 'set_blade_god', '刀神套装'),
   // 斧类
   ...makePinkOrange('berserker', '狂战士之怒', 'weapon', 'axe', 30, [
-    stat('physicalAttack', 'flat', 69), stat('physicalAttackMax', 'flat', 93),
     stat('attackSpeed', 'percent', -20), stat('criticalRate', 'percent', 8),
   ], 47, '攻击吸血5%', 'weapon_axe', 'set_berserker', '狂战士套装'),
   ...makePinkOrange('sword_saint', '剑圣传说', 'weapon', 'axe', 40, [
-    stat('physicalAttack', 'flat', 96), stat('physicalAttackMax', 'flat', 128),
     stat('attackSpeed', 'percent', -20), stat('criticalRate', 'percent', 10),
   ], 49, '暴击伤害+50%', 'weapon_axe', 'set_sword_saint', '剑圣套装'),
   ...makePinkOrange('blade_god', '刀神降临', 'weapon', 'axe', 50, [
-    stat('physicalAttack', 'flat', 126), stat('physicalAttackMax', 'flat', 168),
     stat('attackSpeed', 'percent', -20), stat('criticalRate', 'percent', 12),
   ], 50, '连击数+3', 'weapon_axe', 'set_blade_god', '刀神套装'),
 ];
@@ -1087,20 +1079,8 @@ function makeAbyss(
 
 const ABYSS_WARRIOR_WEAPONS: EquipmentTemplate[] = [
   // 刀类
-  makeAbyss('深渊·狂暴之刃', 'weapon', 'blade', 30, [stat('physicalAttack', 'flat', 55), stat('physicalAttackMax', 'flat', 73), stat('criticalRate', 'percent', 12)], 47, '狂暴技能等级+2，狂暴期间攻速+20%', 'weapon_blade'),
-  makeAbyss('深渊·嗜血刀', 'weapon', 'blade', 40, [stat('physicalAttack', 'flat', 75), stat('physicalAttackMax', 'flat', 100), stat('criticalRate', 'percent', 15)], 49, '嗜血效果提升至8%，击杀刷新嗜血冷却', 'weapon_blade'),
-  makeAbyss('深渊·影斩之刃', 'weapon', 'blade', 50, [stat('physicalAttack', 'flat', 98), stat('physicalAttackMax', 'flat', 130), stat('criticalRate', 'percent', 18)], 50, '影斩变为瞬移+斩击，CD-30%', 'weapon_blade'),
-  makeAbyss('深渊·绝杀刀', 'weapon', 'blade', 60, [stat('physicalAttack', 'flat', 120), stat('physicalAttackMax', 'flat', 160), stat('criticalRate', 'percent', 20)], 50, '绝杀阈值提升至40%，击杀回复20%HP', 'weapon_blade'),
   // 剑类
-  makeAbyss('深渊·剑气之剑', 'weapon', 'sword', 30, [stat('physicalAttack', 'flat', 64), stat('physicalAttackMax', 'flat', 85), stat('criticalRate', 'percent', 10)], 47, '剑气变为扇形范围，穿透敌人', 'weapon_sword'),
-  makeAbyss('深渊·精准之剑', 'weapon', 'sword', 40, [stat('physicalAttack', 'flat', 88), stat('physicalAttackMax', 'flat', 117), stat('criticalRate', 'percent', 13)], 49, '精准打击必暴击，暴击伤害+60%', 'weapon_sword'),
-  makeAbyss('深渊·剑刃风暴', 'weapon', 'sword', 50, [stat('physicalAttack', 'flat', 115), stat('physicalAttackMax', 'flat', 153), stat('criticalRate', 'percent', 16)], 50, '剑刃风暴范围+50%，持续时间+2秒', 'weapon_sword'),
-  makeAbyss('深渊·万剑归宗', 'weapon', 'sword', 60, [stat('physicalAttack', 'flat', 140), stat('physicalAttackMax', 'flat', 187), stat('criticalRate', 'percent', 18)], 50, '万剑归宗剑数×2，自动追踪敌人', 'weapon_sword'),
   // 斧类
-  makeAbyss('深渊·怒气之斧', 'weapon', 'axe', 30, [stat('physicalAttack', 'flat', 77), stat('physicalAttackMax', 'flat', 103), stat('criticalRate', 'percent', 8)], 47, '怒气爆发范围+40%，附加眩晕2秒', 'weapon_axe'),
-  makeAbyss('深渊·血之渴望', 'weapon', 'axe', 40, [stat('physicalAttack', 'flat', 106), stat('physicalAttackMax', 'flat', 141), stat('criticalRate', 'percent', 10)], 49, '血之渴望吸血比例提升至12%，CD-25%', 'weapon_axe'),
-  makeAbyss('深渊·死亡旋风', 'weapon', 'axe', 50, [stat('physicalAttack', 'flat', 138), stat('physicalAttackMax', 'flat', 184), stat('criticalRate', 'percent', 12)], 50, '死亡旋风持续时间+3秒，伤害+30%', 'weapon_axe'),
-  makeAbyss('深渊·终极狂暴', 'weapon', 'axe', 60, [stat('physicalAttack', 'flat', 168), stat('physicalAttackMax', 'flat', 224), stat('criticalRate', 'percent', 15)], 50, '狂暴状态下所有技能CD-40%', 'weapon_axe'),
 ];
 
 // ---- 法师深渊武器 ----

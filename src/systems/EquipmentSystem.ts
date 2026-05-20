@@ -8,6 +8,28 @@ import { recalculateStats } from './LevelSystem';
 
 // ==================== 穿戴/卸下 ====================
 
+/** 双槽位装备的备选槽位映射 */
+const ALT_SLOT: Partial<Record<EquipmentSlot, EquipmentSlot>> = {
+  ring1: 'ring2',
+  ring2: 'ring1',
+  bracelet1: 'bracelet2',
+  bracelet2: 'bracelet1',
+};
+
+/** 解析装备应放入的槽位：优先空槽，都满则替换当前槽 */
+export function resolveEquipSlot(character: Character, equipment: Equipment): EquipmentSlot {
+  const slot = equipment.slot;
+  const alt = ALT_SLOT[slot];
+  // 无备选槽位（非戒指/手镯），直接用原槽位
+  if (!alt) return slot;
+  // 原槽位空 → 用原槽位
+  if (!character.equipment[slot]) return slot;
+  // 备选槽位空 → 用备选槽位
+  if (!character.equipment[alt]) return alt;
+  // 都满了 → 替换原槽位
+  return slot;
+}
+
 /** 穿戴装备，返回旧装备（如有） */
 export function equipItem(character: Character, equipment: Equipment, slot: EquipmentSlot): { success: boolean; unequipped: Equipment | null } {
   // 检查等级要求

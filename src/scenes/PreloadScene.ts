@@ -73,6 +73,9 @@ export class PreloadScene extends Phaser.Scene {
 
     // 法师角色精灵表 (128x128每帧)
     this.load.spritesheet('wizard', 'sprites/Wizard-Sheet.png', { frameWidth: 128, frameHeight: 128 });
+
+    // 战士角色精灵表 (32x32每帧，15排)
+    this.load.spritesheet('warrior', 'sprites/Adventurer-Sprite-Sheet.png', { frameWidth: 32, frameHeight: 32 });
   }
 
   create(): void {

@@ -333,11 +333,22 @@ export class Monster {
       return;
     }
 
-    // 向玩家移动
+    // 向玩家移动，主方向被堵时尝试替代方向
     const targetIso = screenToIso(playerScreen.screenX, playerScreen.screenY);
     const dx = Math.sign(targetIso.x - this.gridX);
     const dy = Math.sign(targetIso.y - this.gridY);
-    this.tryMoveByGrid(dx, dy, _time);
+    if (_time - this.moveAccumulator >= this.moveInterval) {
+      this.moveAccumulator = _time;
+      if (!this.moveByGrid(dx, dy)) {
+        if (dx !== 0 && dy !== 0) {
+          this.moveByGrid(dx, 0) || this.moveByGrid(0, dy);
+        } else if (dx !== 0) {
+          this.moveByGrid(0, 1) || this.moveByGrid(0, -1);
+        } else {
+          this.moveByGrid(1, 0) || this.moveByGrid(-1, 0);
+        }
+      }
+    }
   }
 
   private updateAttack(dist: number, _time: number): void {
@@ -355,11 +366,23 @@ export class Monster {
   }
 
   private updateFlee(playerScreen: { screenX: number; screenY: number }): void {
-    // 远离玩家
+    // 远离玩家，主方向被堵时尝试替代方向
     const targetIso = screenToIso(playerScreen.screenX, playerScreen.screenY);
     const dx = -Math.sign(targetIso.x - this.gridX);
     const dy = -Math.sign(targetIso.y - this.gridY);
-    this.tryMoveByGrid(dx, dy, this.scene.time.now);
+    const now = this.scene.time.now;
+    if (now - this.moveAccumulator >= this.moveInterval) {
+      this.moveAccumulator = now;
+      if (!this.moveByGrid(dx, dy)) {
+        if (dx !== 0 && dy !== 0) {
+          this.moveByGrid(dx, 0) || this.moveByGrid(0, dy);
+        } else if (dx !== 0) {
+          this.moveByGrid(0, 1) || this.moveByGrid(0, -1);
+        } else {
+          this.moveByGrid(1, 0) || this.moveByGrid(-1, 0);
+        }
+      }
+    }
 
     // 逃跑后重新评估
     const hpRatio = this.combatEntity.hp / this.combatEntity.maxHp;
@@ -627,8 +650,12 @@ export class Monster {
       { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
     ];
     for (const off of offsets) {
-      const pos = isoToScreen(this.gridX + off.dx, this.gridY + off.dy);
-      this.patrolTargets.push({ x: pos.screenX, y: pos.screenY });
+      const gx = this.gridX + off.dx;
+      const gy = this.gridY + off.dy;
+      if (this.isWalkable(gx, gy)) {
+        const pos = isoToScreen(gx, gy);
+        this.patrolTargets.push({ x: pos.screenX, y: pos.screenY });
+      }
     }
     // 随机打乱
     for (let i = this.patrolTargets.length - 1; i > 0; i--) {

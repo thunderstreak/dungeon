@@ -5,7 +5,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config';
 import { BasePanel } from './BasePanel';
 import type { Character, Equipment, InventoryCategory, InventorySlot } from '@/config/types';
 import { getEquipmentById } from '@/data/equipment';
-import { equipItem } from '@/systems/EquipmentSystem';
+import { equipItem, resolveEquipSlot } from '@/systems/EquipmentSystem';
 import { removeItem, addEquipment } from '@/systems/InventorySystem';
 import { gameState } from '@/state/GameState';
 import { ContextMenu } from './ContextMenu';
@@ -170,11 +170,14 @@ export class InventoryPanel extends BasePanel {
         }
         if (!equipment) return;
 
-        // 如果该槽位已装备相同装备，不做任何操作
-        const currentEquipped = character.equipment[equipment.slot];
+        // 解析目标槽位（戒指/手镯智能选择空槽）
+        const targetSlot = resolveEquipSlot(character, equipment);
+
+        // 如果目标槽位已装备相同装备，不做任何操作
+        const currentEquipped = character.equipment[targetSlot];
         if (currentEquipped && currentEquipped.id === equipment.id) return;
 
-        const result = equipItem(character, equipment, equipment.slot);
+        const result = equipItem(character, equipment, targetSlot);
         if (result.success) {
           removeItem(character, slot.item.id, 1);
           if (result.unequipped) {

@@ -176,11 +176,26 @@ export class Boss {
           this.aiState = 'attack';
           break;
         }
-        // 向玩家移动
-        const targetIso = screenToIso(playerScreen.screenX, playerScreen.screenY);
-        const dx = Math.sign(targetIso.x - this.gridX);
-        const dy = Math.sign(targetIso.y - this.gridY);
-        this.tryMoveByGrid(dx, dy, time);
+        // 向玩家移动，主方向被堵时尝试替代方向
+        {
+          const targetIso = screenToIso(playerScreen.screenX, playerScreen.screenY);
+          const dx = Math.sign(targetIso.x - this.gridX);
+          const dy = Math.sign(targetIso.y - this.gridY);
+          // 检查移动间隔
+          if (time - this.lastMoveTime >= this.moveInterval) {
+            this.lastMoveTime = time;
+            if (!this.moveByGrid(dx, dy)) {
+              // 主方向被堵，尝试替代方向
+              if (dx !== 0 && dy !== 0) {
+                this.moveByGrid(dx, 0) || this.moveByGrid(0, dy);
+              } else if (dx !== 0) {
+                this.moveByGrid(0, 1) || this.moveByGrid(0, -1);
+              } else if (dy !== 0) {
+                this.moveByGrid(1, 0) || this.moveByGrid(-1, 0);
+              }
+            }
+          }
+        }
         break;
 
       case 'attack':
@@ -309,11 +324,11 @@ export class Boss {
   }
 
   /** 等距格子移动 */
-  private moveByGrid(dx: number, dy: number): void {
+  private moveByGrid(dx: number, dy: number): boolean {
     const newX = this.gridX + dx;
     const newY = this.gridY + dy;
 
-    if (!this.isWalkable(newX, newY)) return;
+    if (!this.isWalkable(newX, newY)) return false;
 
     this.gridX = newX;
     this.gridY = newY;
@@ -321,13 +336,14 @@ export class Boss {
     const pos = isoToScreen(newX, newY);
     this.container.setPosition(pos.screenX, pos.screenY);
     this.container.setDepth(getDepthSort(newY));
+    return true;
   }
 
-  private tryMoveByGrid(dx: number, dy: number, time: number): void {
-    if (dx === 0 && dy === 0) return;
-    if (time - this.lastMoveTime < this.moveInterval) return;
+  private tryMoveByGrid(dx: number, dy: number, time: number): boolean {
+    if (dx === 0 && dy === 0) return false;
+    if (time - this.lastMoveTime < this.moveInterval) return false;
     this.lastMoveTime = time;
-    this.moveByGrid(dx, dy);
+    return this.moveByGrid(dx, dy);
   }
 
   private updateAggroMeter(playerGridX: number, playerGridY: number): void {

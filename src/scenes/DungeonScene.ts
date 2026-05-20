@@ -321,7 +321,8 @@ export class DungeonScene extends Phaser.Scene {
     if (this.playerDead) return;
 
     const now = this.time.now;
-    if (now - this.attackCooldown < 500) return;
+    const cooldown = 160000 / this.player.character.stats.attackSpeed;
+    if (now - this.attackCooldown < cooldown) return;
     this.attackCooldown = now;
 
     this.player.playAttackAnimation({ x: monster.container.x, y: monster.container.y }, () => {
@@ -442,14 +443,8 @@ export class DungeonScene extends Phaser.Scene {
       // 生成地面掉落物
       const lootItems = generateLootItems(drop, character.level);
       for (const item of lootItems) {
-        const ox = Math.floor(Math.random() * 3) - 1;
-        const oy = Math.floor(Math.random() * 3) - 1;
-        const lootX = monster.gridX + ox;
-        const lootY = monster.gridY + oy;
-        // 确保掉落物在可行走区域，否则放在怪物位置
-        const finalX = this.floorWalkability.isWalkable(lootX, lootY) ? lootX : monster.gridX;
-        const finalY = this.floorWalkability.isWalkable(lootX, lootY) ? lootY : monster.gridY;
-        const loot = new GroundLoot(this, item, finalX, finalY);
+        const pos = this.findWalkableDropPosition(monster.gridX, monster.gridY);
+        const loot = new GroundLoot(this, item, pos.x, pos.y);
         this.groundLoots.push(loot);
       }
     } else {
@@ -475,6 +470,32 @@ export class DungeonScene extends Phaser.Scene {
 
     const idx = this.monsters.indexOf(monster);
     if (idx !== -1) this.monsters.splice(idx, 1);
+  }
+
+  /** 从中心向外螺旋搜索可行走的掉落位置 */
+  private findWalkableDropPosition(centerX: number, centerY: number): { x: number; y: number } {
+    // 先试中心
+    if (this.floorWalkability.isWalkable(centerX, centerY)) {
+      return { x: centerX, y: centerY };
+    }
+    // 螺旋搜索半径1~3
+    for (let r = 1; r <= 3; r++) {
+      const candidates: { x: number; y: number }[] = [];
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const tx = centerX + dx;
+          const ty = centerY + dy;
+          if (this.floorWalkability.isWalkable(tx, ty)) {
+            candidates.push({ x: tx, y: ty });
+          }
+        }
+      }
+      if (candidates.length > 0) {
+        return candidates[Math.floor(Math.random() * candidates.length)];
+      }
+    }
+    return { x: centerX, y: centerY };
   }
 
   /** 房间通关 */

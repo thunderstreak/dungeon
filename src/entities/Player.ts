@@ -9,7 +9,7 @@ import type { CombatEntity, DamageResult } from '@/systems/BattleSystem';
 import type { Monster } from './Monster';
 import type { Boss } from './Boss';
 import { playAttackAnimation as playAttackTween } from '@/ui/AttackAnimation';
-import { createPlayerPixelBody, getPlayerMoveAnimationPose } from '@/ui/PixelBodies';
+import { getPlayerMoveAnimationPose } from '@/ui/PixelBodies';
 import { createRegenState, updateRegen, recordDamage } from '@/systems/RegenSystem';
 import type { RegenState } from '@/systems/RegenSystem';
 
@@ -51,6 +51,9 @@ export class Player {
 
   // 攻击目标
   attackTarget: Monster | Boss | null = null;
+
+  // 攻击动画状态
+  private isAttacking = false;
 
   // 自动恢复状态
   private regenState: RegenState;
@@ -101,9 +104,16 @@ export class Player {
       this.body = scene.add.container(0, 0);
       this.body.setVisible(false);
     } else {
-      // 战士使用像素方块
-      this.body = createPlayerPixelBody(scene);
-      this.container.add(this.body);
+      // 战士使用精灵图
+      this.ensureWarriorAnims(scene);
+      this.sprite = scene.add.sprite(0, 0, 'warrior');
+      this.sprite.setOrigin(0.5, 1.0);
+      this.sprite.setScale(TILE_SIZE / 32, TILE_SIZE / 32);
+      this.sprite.play('warrior_idle');
+      this.container.add(this.sprite);
+      // body 保留为空容器，避免 null 检查
+      this.body = scene.add.container(0, 0);
+      this.body.setVisible(false);
     }
 
     // 血条背景
@@ -271,13 +281,15 @@ export class Player {
     this.syncHp();
     this.updateHpBar();
 
-    // 法师受伤动画
-    if (this.isMage && this.sprite && this.combatEntity.hp > 0) {
+    // 受伤动画
+    if (this.sprite && this.combatEntity.hp > 0) {
+      const hurtKey = this.isMage ? 'wizard_hurt' : 'warrior_hurt';
+      const idleKey = this.isMage ? 'wizard_idle' : 'warrior_idle';
       this.sprite.setTint(0xff8888);
-      this.sprite.play('wizard_hurt');
+      this.sprite.play(hurtKey);
       this.sprite.once('animationcomplete', () => {
         this.sprite?.clearTint();
-        this.sprite?.play('wizard_idle');
+        this.sprite?.play(idleKey);
       });
     }
 
@@ -294,8 +306,9 @@ export class Player {
 
   /** 死亡处理 */
   die(): void {
-    if (this.isMage && this.sprite) {
-      this.sprite.play('wizard_death');
+    if (this.sprite) {
+      const deathKey = this.isMage ? 'wizard_death' : 'warrior_death';
+      this.sprite.play(deathKey);
     }
   }
 
@@ -310,11 +323,16 @@ export class Player {
   }
 
   playAttackAnimation(target: { x: number; y: number }, onStrike: () => void): void {
-    if (this.isMage && this.sprite) {
-      // 法师播放施法动画
-      this.sprite.play('wizard_spell');
+    if (this.sprite) {
+      // 根据职业选择攻击动画
+      this.isAttacking = true;
+      const attackKeys = ['warrior_attack1', 'warrior_attack2', 'warrior_attack3'];
+      const attackKey = this.isMage ? 'wizard_spell' : attackKeys[Math.floor(Math.random() * 3)];
+      const idleKey = this.isMage ? 'wizard_idle' : 'warrior_idle';
+      this.sprite.play(attackKey);
       this.sprite.once('animationcomplete', () => {
-        this.sprite!.play('wizard_idle');
+        this.isAttacking = false;
+        this.sprite!.play(idleKey);
       });
       // 延迟触发打击点
       this.scene.time.delayedCall(300, () => onStrike());
@@ -331,16 +349,60 @@ export class Player {
   }
 
   private updateMoveAnimation(delta: number): void {
-    if (this.isMage && this.sprite) {
-      // 法师精灵动画
+    if (this.sprite) {
+      // 攻击动画播放中，不覆盖
+      if (this.isAttacking) return;
+
+      // 根据视觉位置与目标的距离判断是否还在移动
+      const visualDist = Phaser.Math.Distance.Between(
+        this.visualX, this.visualY,
+        this.targetVisualX, this.targetVisualY,
+      );
+      const visuallyMoving = visualDist > 0.5;
       const curAnim = this.sprite.anims.currentAnim;
-      if (this.isMoving) {
-        if (!curAnim || curAnim.key !== 'wizard_walk') {
-          this.sprite.play('wizard_walk', true);
+
+      if (visuallyMoving) {
+        const dx = this.targetVisualX - this.visualX;
+        const dy = this.targetVisualY - this.visualY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+
+        if (this.isMage) {
+          if (!curAnim || curAnim.key !== 'wizard_walk') {
+            this.sprite.play('wizard_walk', true);
+          }
+        } else {
+          // 战士：-Y用run_up，+Y用镜像run（向左跑），水平用run+镜像
+          let walkKey = 'warrior_run';
+          let flipX = false;
+          if (absDy > absDx) {
+            // 垂直移动为主
+            if (dy < 0) {
+              // -Y（屏幕向上）用 run_up
+              walkKey = 'warrior_run_up';
+            } else {
+              // +Y（屏幕向下）用镜像 run（向左跑）
+              walkKey = 'warrior_run';
+              flipX = true;
+            }
+          } else {
+            // 水平移动为主，向左时镜像
+            walkKey = 'warrior_run';
+            flipX = dx < 0;
+          }
+          if (!curAnim || curAnim.key !== walkKey) {
+            this.sprite.play(walkKey, true);
+          }
+          this.sprite.setFlipX(flipX);
         }
       } else {
-        if (!curAnim || curAnim.key !== 'wizard_idle') {
-          this.sprite.play('wizard_idle', true);
+        const idleKey = this.isMage ? 'wizard_idle' : 'warrior_idle';
+        if (!curAnim || curAnim.key !== idleKey) {
+          this.sprite.play(idleKey, true);
+        }
+        // 停止时重置镜像
+        if (!this.isMage) {
+          this.sprite.setFlipX(false);
         }
       }
       return;
@@ -399,6 +461,7 @@ export class Player {
   }
 
   private static wizardAnimsCreated = false;
+  private static warriorAnimsCreated = false;
 
   private ensureWizardAnims(scene: Phaser.Scene): void {
     if (Player.wizardAnimsCreated) return;
@@ -417,5 +480,48 @@ export class Player {
     scene.anims.create({ key: 'wizard_buff', frames: wiz(4, 0, 16), frameRate: 15, repeat: 0 });
     scene.anims.create({ key: 'wizard_hurt', frames: wiz(5, 0, 4), frameRate: 15, repeat: 0 });
     scene.anims.create({ key: 'wizard_death', frames: wiz(6, 0, 9), frameRate: 10, repeat: 0 });
+  }
+
+  private ensureWarriorAnims(scene: Phaser.Scene): void {
+    if (Player.warriorAnimsCreated) return;
+    Player.warriorAnimsCreated = true;
+
+    // Adventurer-Sprite-Sheet: 416x480, 15排, 每帧32x32, 最多13列
+    const COLS = 13;
+    const war = (row: number, start: number, end: number) => {
+      const s = row * COLS + start;
+      const e = row * COLS + end;
+      return scene.anims.generateFrameNumbers('warrior', { start: s, end: e });
+    };
+    // 第0排: 空闲 13帧
+    scene.anims.create({ key: 'warrior_idle', frames: war(0, 0, 12), frameRate: 10, repeat: -1 });
+    // 第1排: 向右跑 8帧
+    scene.anims.create({ key: 'warrior_run', frames: war(1, 0, 7), frameRate: 12, repeat: -1 });
+    // 第2排: 攻击1 10帧
+    scene.anims.create({ key: 'warrior_attack1', frames: war(2, 0, 9), frameRate: 15, repeat: 0 });
+    // 第3排: 攻击2 10帧
+    scene.anims.create({ key: 'warrior_attack2', frames: war(3, 0, 9), frameRate: 15, repeat: 0 });
+    // 第4排: 攻击3 10帧
+    scene.anims.create({ key: 'warrior_attack3', frames: war(4, 0, 9), frameRate: 15, repeat: 0 });
+    // 第5排: 跳跃 6帧
+    scene.anims.create({ key: 'warrior_jump', frames: war(5, 0, 5), frameRate: 10, repeat: 0 });
+    // 第6排: 受伤 4帧
+    scene.anims.create({ key: 'warrior_hurt', frames: war(6, 0, 3), frameRate: 12, repeat: 0 });
+    // 第7排: 死亡 7帧
+    scene.anims.create({ key: 'warrior_death', frames: war(7, 0, 6), frameRate: 10, repeat: 0 });
+    // 第8排: 攀爬 4帧
+    scene.anims.create({ key: 'warrior_climb', frames: war(8, 0, 3), frameRate: 8, repeat: -1 });
+    // 第9排: 弓箭射击 8帧
+    scene.anims.create({ key: 'warrior_bow', frames: war(9, 0, 7), frameRate: 12, repeat: 0 });
+    // 第10排: 施法 6帧
+    scene.anims.create({ key: 'warrior_spell', frames: war(10, 0, 5), frameRate: 12, repeat: 0 });
+    // 第11排: 向上奔跑 8帧
+    scene.anims.create({ key: 'warrior_run_up', frames: war(11, 0, 7), frameRate: 12, repeat: -1 });
+    // 第12排: 翻滚 5帧
+    scene.anims.create({ key: 'warrior_roll', frames: war(12, 0, 4), frameRate: 12, repeat: 0 });
+    // 第13排: 推箱子 8帧
+    scene.anims.create({ key: 'warrior_push', frames: war(13, 0, 7), frameRate: 10, repeat: -1 });
+    // 第14排: 传送 7帧
+    scene.anims.create({ key: 'warrior_teleport', frames: war(14, 0, 6), frameRate: 12, repeat: 0 });
   }
 }
