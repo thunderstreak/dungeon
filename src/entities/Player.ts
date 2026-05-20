@@ -91,8 +91,9 @@ export class Player {
     if (this.isMage) {
       // 确保法师动画已创建（可能在任意场景中首次创建Player）
       this.ensureWizardAnims(scene);
-      // 法师使用精灵图
+      // 法师使用精灵图，origin设为底部中心（脚部对齐）
       this.sprite = scene.add.sprite(0, 0, 'wizard');
+      this.sprite.setOrigin(0.5, 1.0);
       this.sprite.setScale(TILE_SIZE / 128, TILE_SIZE / 128);
       this.sprite.play('wizard_idle');
       this.container.add(this.sprite);
