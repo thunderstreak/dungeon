@@ -13,7 +13,7 @@ import { calcPhysicalDamage, applyDamage } from '@/systems/BattleSystem';
 import { executeSkillDamage, isSkillReady, getPassiveTriggerEffects } from '@/systems/SkillSystem';
 import { ALL_SKILLS } from '@/data/skills';
 import type { Equipment, SkillSlot } from '@/config/types';
-import { calculateMonsterDrop, PityCounter } from '@/systems/DropSystem';
+import { calculateMonsterDrop, calculateBossDrop, PityCounter } from '@/systems/DropSystem';
 import { addExperience } from '@/systems/LevelSystem';
 import { addGold, addEquipment, addItem } from '@/systems/InventorySystem';
 import { GroundLoot } from '@/entities/GroundLoot';
@@ -23,7 +23,7 @@ import { getPotionById, getMaterialById } from '@/data/items';
 import { RARITY_COLORS } from '@/config/constants';
 import type { Item } from '@/config/types';
 import { applyDeathPenalty } from '@/systems/DeathSystem';
-import { createDungeonState, tryTriggerAbyss, getFloorMultiplier } from '@/systems/DungeonSystem';
+import { createDungeonState, tryTriggerAbyss, getFloorMultiplier, onBossDefeated } from '@/systems/DungeonSystem';
 import type { DungeonState } from '@/systems/DungeonSystem';
 import { consumeDurability } from '@/systems/EquipmentSystem';
 import { RoomGenerator } from '@/map/RoomGenerator';
@@ -98,13 +98,12 @@ export class DungeonScene extends Phaser.Scene {
     this.currentRoom = startRoom;
     this.currentRoom.isEntered = true;
 
-    // 为所有房间生成怪物
+    // 调试：打印所有房间信息
     for (const room of rooms) {
-      if (room.type === 'boss') continue; // Boss房间不生成普通怪物
-      this.spawnMonstersForRoom(room);
+      console.log(`房间 ${room.id}: type=${room.type}, pos=(${room.roomData.position.x},${room.roomData.position.y}), size=${room.roomData.position.width}x${room.roomData.position.height}`);
     }
 
-    // 设置当前房间的怪物列表
+    // 设置当前房间的怪物列表（怪物在深渊选择后生成）
     this.monsters = this.roomMonsters.get(this.currentRoom.id) ?? [];
 
     // 创建玩家（在当前房间中心）
@@ -183,6 +182,28 @@ export class DungeonScene extends Phaser.Scene {
     // 启动UI层（先停止确保重新创建）
     this.scene.stop('UIScene');
     this.scene.launch('UIScene');
+
+    // 深渊模式选择（进入地牢时触发）
+    const abyssTriggered = tryTriggerAbyss(this.dungeonState);
+    if (abyssTriggered) {
+      const uiScene = this.scene.get('UIScene') as UIScene | null;
+      if (uiScene) {
+        uiScene.showAbyssChoice(
+          () => {
+            this.dungeonState.isAbyss = true;
+            this.spawnAllRoomMonsters();
+          },
+          () => {
+            this.dungeonState.isAbyss = false;
+            this.spawnAllRoomMonsters();
+          },
+        );
+      } else {
+        this.spawnAllRoomMonsters();
+      }
+    } else {
+      this.spawnAllRoomMonsters();
+    }
 
     this.cameras.main.fadeIn(300);
   }
@@ -275,6 +296,17 @@ export class DungeonScene extends Phaser.Scene {
     for (const monster of roomMonsters) {
       monster.onDeath = (m: Monster | Boss) => this.onMonsterDeath(m);
     }
+  }
+
+  /** 为所有非Boss房间生成普通怪物 */
+  private spawnAllRoomMonsters(): void {
+    const allRooms = this.roomGenerator.getAllRooms();
+    for (const room of allRooms) {
+      if (room.type === 'boss') continue;
+      this.spawnMonstersForRoom(room);
+    }
+    // 更新当前房间怪物列表
+    this.monsters = this.roomMonsters.get(this.currentRoom.id) ?? [];
   }
 
   /** 检测玩家是否进入了新房间 */
@@ -477,9 +509,19 @@ export class DungeonScene extends Phaser.Scene {
         this.groundLoots.push(loot);
       }
     } else {
-      // Boss掉落：直接给固定奖励
-      goldAmount = 100 * this.floor;
-      expAmount = 50 * this.floor;
+      // Boss掉落：使用calculateBossDrop
+      const boss = monster as Boss;
+      const isFirstKill = !this.dungeonState.bossDefeatedFloors.has(this.floor);
+      const drop = calculateBossDrop(boss.bossData, isFirstKill);
+      goldAmount = drop.goldAmount;
+      expAmount = drop.expAmount;
+      // 生成地面掉落物
+      const lootItems = generateLootItems(drop, character.level);
+      for (const item of lootItems) {
+        const pos = this.findWalkableDropPosition(monster.gridX, monster.gridY);
+        const loot = new GroundLoot(this, item, pos.x, pos.y);
+        this.groundLoots.push(loot);
+      }
     }
 
     addGold(character, goldAmount);
@@ -499,6 +541,12 @@ export class DungeonScene extends Phaser.Scene {
 
     const idx = this.monsters.indexOf(monster);
     if (idx !== -1) this.monsters.splice(idx, 1);
+
+    // Boss死亡后标记房间已通关，阻止重生
+    if (monster instanceof Boss) {
+      this.roomCleared = true;
+      onBossDefeated(this.dungeonState, this.floor);
+    }
   }
 
   /** 从中心向外螺旋搜索可行走的掉落位置 */
@@ -532,18 +580,6 @@ export class DungeonScene extends Phaser.Scene {
     this.roomsEntered.add(this.currentRoom.id);
     showNotification(this, '房间已清除!', '#44ff44');
     this.currentRoom.markCleared();
-
-    // 深渊模式判定（10%概率触发）
-    const abyssTriggered = tryTriggerAbyss(this.dungeonState);
-    if (abyssTriggered) {
-      const uiScene = this.scene.get('UIScene') as UIScene | null;
-      if (uiScene) {
-        uiScene.showAbyssChoice(
-          () => { this.dungeonState.isAbyss = true; },
-          () => { this.dungeonState.isAbyss = false; },
-        );
-      }
-    }
 
     // Boss房间检查
     if (this.currentRoom.roomData.type === 'boss') {
@@ -702,7 +738,7 @@ export class DungeonScene extends Phaser.Scene {
       gridX: pos.x,
       gridY: pos.y,
       floorMultiplier,
-    });
+    }, this.dungeonState.isAbyss);
 
     boss.onDeath = (m) => this.onMonsterDeath(m);
     boss.isWalkable = (gx, gy) => {

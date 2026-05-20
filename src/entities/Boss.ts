@@ -382,6 +382,12 @@ export class Boss {
 
     showDamagePopup(this.scene, this.container.x, this.container.y - 30, damage, isCritical ? 'critical' : 'normal');
 
+    // 被攻击后仇恨转向攻击者
+    if (this.aiState === 'idle' || this.aiState === 'chase') {
+      this.resetAggroTracking();
+      this.aiState = 'chase';
+    }
+
     if (this.combatEntity.hp <= 0) {
       this.die();
     }

@@ -138,7 +138,7 @@ export class MiniMap {
       const rw = room.w * scale;
       const rh = room.h * scale;
 
-      const color = room.cleared ? 0x336633 : room.type === 'boss' ? 0x663333 : 0x333366;
+      const color = room.cleared ? 0x336633 : room.type === 'boss' ? 0xcc3333 : 0x333366;
       const rect = this.scene.add.rectangle(rx, ry, rw, rh, color, 0.6);
       rect.setOrigin(0, 0);
       this.container.add(rect);

@@ -6,7 +6,7 @@ import { Boss } from '../Boss';
 import { ALL_MONSTERS, type MonsterDefinition } from '@/data/monsters';
 import { ALL_BOSSES, type BossDefinition } from '@/data/bosses';
 import { getMonstersByFloor } from '@/data/monsters';
-import { getBossesByFloor } from '@/data/bosses';
+import { getBossesByFloor, getNormalBosses, getAbyssBosses } from '@/data/bosses';
 import { shouldSpawnElite, createEliteCombatEntity } from '@/systems/EliteSystem';
 
 /** 怪物生成选项 */
@@ -65,8 +65,11 @@ export function createMonster(scene: Phaser.Scene, options: SpawnOptions): Monst
 }
 
 /** 创建Boss */
-export function createBoss(scene: Phaser.Scene, options: SpawnOptions): Boss {
-  const bosses = getBossesForFloor(options.floor);
+export function createBoss(scene: Phaser.Scene, options: SpawnOptions, isAbyss = false): Boss {
+  const pool = isAbyss
+    ? getAbyssBosses().filter(b => b.floor === options.floor)
+    : getNormalBosses().filter(b => b.floor === options.floor);
+  const bosses = pool.length > 0 ? pool : getBossesForFloor(options.floor);
   if (bosses.length === 0) {
     return new Boss(scene, ALL_BOSSES[0], options.gridX, options.gridY);
   }
