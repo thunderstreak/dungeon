@@ -283,8 +283,28 @@ export class InventoryPanel extends BasePanel {
       count,
     };
 
-    // 在角色当前位置创建地面掉落物
-    const loot = new GroundLoot(dungeonScene, groundItem, player.gridX, player.gridY);
+    // 在角色旁边的可行走格子创建地面掉落物，避免自动拾取
+    const offsets = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+    let dropX = -1;
+    let dropY = -1;
+    for (const [ox, oy] of offsets) {
+      const nx = player.gridX + ox;
+      const ny = player.gridY + oy;
+      if (dungeonScene.floorWalkability?.isWalkable(nx, ny)) {
+        dropX = nx;
+        dropY = ny;
+        break;
+      }
+    }
+    if (dropX < 0) {
+      // 周围没有可行走格子，恢复槽位不丢弃
+      slot.item = item;
+      slot.count = count;
+      showNotification(this.scene, '周围无法放置', '#ff6666');
+      return;
+    }
+
+    const loot = new GroundLoot(dungeonScene, groundItem, dropX, dropY);
     dungeonScene.groundLoots.push(loot);
 
     this.refreshSlots();
