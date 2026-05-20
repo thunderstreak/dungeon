@@ -22,6 +22,8 @@ export class Player {
 
   container: Phaser.GameObjects.Container;
   private body: Phaser.GameObjects.Container;
+  private sprite: Phaser.GameObjects.Sprite | null = null;
+  private isMage: boolean;
   private hpBarBg: Phaser.GameObjects.Rectangle;
   private hpBarFill: Phaser.GameObjects.Rectangle;
   private nameText: Phaser.GameObjects.Text;
@@ -82,10 +84,24 @@ export class Player {
     this.container = scene.add.container(pos.screenX, pos.screenY);
     this.container.setDepth(getDepthSort(spawnY));
 
-    // 玩家占位正方形（绿色）
+    // 根据职业选择渲染方式
+    this.isMage = character.class === 'mage';
     const size = TILE_SIZE - 4;
-    this.body = createPlayerPixelBody(scene);
-    this.container.add(this.body);
+
+    if (this.isMage) {
+      // 法师使用精灵图
+      this.sprite = scene.add.sprite(0, 0, 'wizard');
+      this.sprite.setScale(TILE_SIZE / 128);
+      this.sprite.play('wizard_idle');
+      this.container.add(this.sprite);
+      // body 保留为空容器，避免 null 检查
+      this.body = scene.add.container(0, 0);
+      this.body.setVisible(false);
+    } else {
+      // 战士使用像素方块
+      this.body = createPlayerPixelBody(scene);
+      this.container.add(this.body);
+    }
 
     // 血条背景
     this.hpBarBg = scene.add.rectangle(0, -size / 2 - 8, TILE_SIZE - 4, 4, 0x333333);
@@ -251,6 +267,17 @@ export class Player {
     recordDamage(this.regenState, this.scene.time.now);
     this.syncHp();
     this.updateHpBar();
+
+    // 法师受伤动画
+    if (this.isMage && this.sprite && this.combatEntity.hp > 0) {
+      this.sprite.setTint(0xff8888);
+      this.sprite.play('wizard_hurt');
+      this.sprite.once('animationcomplete', () => {
+        this.sprite?.clearTint();
+        this.sprite?.play('wizard_idle');
+      });
+    }
+
     return actualDamage;
   }
 
@@ -264,7 +291,9 @@ export class Player {
 
   /** 死亡处理 */
   die(): void {
-    // 预留：触发死亡事件、死亡界面等
+    if (this.isMage && this.sprite) {
+      this.sprite.play('wizard_death');
+    }
   }
 
   /** 获取等距格子坐标 */
@@ -278,6 +307,16 @@ export class Player {
   }
 
   playAttackAnimation(target: { x: number; y: number }, onStrike: () => void): void {
+    if (this.isMage && this.sprite) {
+      // 法师播放施法动画
+      this.sprite.play('wizard_spell');
+      this.sprite.once('animationcomplete', () => {
+        this.sprite!.play('wizard_idle');
+      });
+      // 延迟触发打击点
+      this.scene.time.delayedCall(300, () => onStrike());
+      return;
+    }
     this.body.setPosition(0, 0);
     this.body.setRotation(0);
     this.body.setScale(1);
@@ -289,6 +328,20 @@ export class Player {
   }
 
   private updateMoveAnimation(delta: number): void {
+    if (this.isMage && this.sprite) {
+      // 法师精灵动画
+      if (this.isMoving) {
+        if (this.sprite.anims.currentAnim?.key !== 'wizard_walk') {
+          this.sprite.play('wizard_walk');
+        }
+      } else {
+        if (this.sprite.anims.currentAnim?.key !== 'wizard_idle') {
+          this.sprite.play('wizard_idle');
+        }
+      }
+      return;
+    }
+
     if (!this.isMoving) {
       this.moveAnimationTime = 0;
       this.body.setPosition(0, 0);

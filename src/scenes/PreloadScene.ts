@@ -70,6 +70,9 @@ export class PreloadScene extends Phaser.Scene {
 
     // 法杖icon精灵图 (16帧，一排6个，每帧32x32)
     this.load.spritesheet('staff_icons', 'sprites/weapons/staff-icons.png', { frameWidth: 32, frameHeight: 32 });
+
+    // 法师角色精灵表 (128x128每帧，7行动画)
+    this.load.spritesheet('wizard', 'sprites/Wizard-Sheet.png', { frameWidth: 128, frameHeight: 128 });
   }
 
   create(): void {
