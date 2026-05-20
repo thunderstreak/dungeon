@@ -77,8 +77,10 @@ export function loadFromSlot(slot: number): SaveData | null {
     // 版本兼容性检查
     if (data.version !== GAME_VERSION) {
       console.warn(`存档版本不匹配: ${data.version} vs ${GAME_VERSION}`);
-      // 可以在这里添加版本迁移逻辑
     }
+
+    // 存档迁移：清理已废弃的 physicalAttackMax 属性
+    migrateRemovePhysicalAttackMax(data);
 
     return data;
   } catch (error) {
@@ -224,5 +226,28 @@ export function importSave(slot: number, jsonStr: string): boolean {
   } catch (error) {
     console.error('导入存档失败:', error);
     return false;
+  }
+}
+
+// ==================== 存档迁移 ====================
+
+/** 清理装备中已废弃的 physicalAttackMax 属性 */
+function migrateRemovePhysicalAttackMax(data: SaveData): void {
+  const cleanStats = (equipment: { stats?: Array<{ stat: string }> } | null | undefined) => {
+    if (equipment?.stats) {
+      equipment.stats = equipment.stats.filter(s => s.stat !== 'physicalAttackMax');
+    }
+  };
+
+  // 清理已穿戴装备
+  for (const slot of Object.values(data.player.equipment)) {
+    cleanStats(slot);
+  }
+
+  // 清理背包中的装备
+  for (const category of Object.values(data.inventory.categories)) {
+    for (const invSlot of category) {
+      cleanStats(invSlot.equipmentData);
+    }
   }
 }

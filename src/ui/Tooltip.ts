@@ -111,6 +111,14 @@ export class Tooltip {
     if (equip.slot === 'weapon') {
       const typeName = WEAPON_TYPE_NAMES[equip.type] ?? equip.type;
       this.addDetailLine(`类型: ${typeName}`);
+      // 使用角色
+      const warriorWeapons = ['sword', 'blade', 'axe'];
+      const mageWeapons = ['long_staff', 'short_staff', 'wand'];
+      if (warriorWeapons.includes(equip.type)) {
+        this.addDetailLine('使用角色: 战士');
+      } else if (mageWeapons.includes(equip.type)) {
+        this.addDetailLine('使用角色: 法师');
+      }
     }
 
     // 部位

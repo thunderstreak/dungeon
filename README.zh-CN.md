@@ -6,11 +6,16 @@
 
 ## 项目预览
 
-![地牢探险预览图 1](./preview/ScreenShot_2026-05-20_142237_305.png)
+![地牢探险预览图 1](./preview/ScreenShot_2026-05-20_143347_808.png)
 
-![地牢探险预览图 2](./preview/ScreenShot_2026-05-20_142257_471.png)
+![地牢探险预览图 2](./preview/ScreenShot_2026-05-20_142237_305.png)
 
-![地牢探险预览图 3](./preview/ScreenShot_2026-05-20_142315_487.png)
+![地牢探险预览图 3](./preview/ScreenShot_2026-05-20_142257_471.png)
+
+![地牢探险预览图 4](./preview/ScreenShot_2026-05-20_142315_487.png)
+
+![地牢探险预览图 5](./preview/ScreenShot_2026-05-20_143326_425.png)
+
 
 ## 项目简介
 

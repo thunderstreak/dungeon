@@ -6,11 +6,16 @@ A 2D isometric pixel-art dungeon crawler RPG built with Phaser 3, TypeScript, an
 
 ## Preview
 
-![Dungeon Explorer preview 1](./preview/ScreenShot_2026-05-20_142237_305.png)
+![Dungeon Explorer preview 1](./preview/ScreenShot_2026-05-20_143347_808.png)
 
-![Dungeon Explorer preview 2](./preview/ScreenShot_2026-05-20_142257_471.png)
+![Dungeon Explorer preview 2](./preview/ScreenShot_2026-05-20_142237_305.png)
 
-![Dungeon Explorer preview 3](./preview/ScreenShot_2026-05-20_142315_487.png)
+![Dungeon Explorer preview 3](./preview/ScreenShot_2026-05-20_142257_471.png)
+
+![Dungeon Explorer preview 4](./preview/ScreenShot_2026-05-20_142315_487.png)
+
+![Dungeon Explorer preview 5](./preview/ScreenShot_2026-05-20_143326_425.png)
+
 
 ## Overview
 

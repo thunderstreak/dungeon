@@ -183,6 +183,27 @@ export class InventoryPanel extends BasePanel {
         }
         if (!equipment) return;
 
+        // 检查使用条件
+        if (character.level < equipment.requirement.level) {
+          showNotification(this.scene, `需要等级 Lv.${equipment.requirement.level}`, '#ff6666');
+          return;
+        }
+        if (equipment.slot === 'weapon') {
+          const wt = equipment.type;
+          if (character.class === 'warrior' && !['sword', 'blade', 'axe'].includes(wt)) {
+            showNotification(this.scene, '战士无法使用此武器', '#ff6666');
+            return;
+          }
+          if (character.class === 'mage' && !['long_staff', 'short_staff', 'wand'].includes(wt)) {
+            showNotification(this.scene, '法师无法使用此武器', '#ff6666');
+            return;
+          }
+        }
+        if (equipment.slot === 'shield' && character.class === 'mage') {
+          showNotification(this.scene, '法师无法装备盾牌', '#ff6666');
+          return;
+        }
+
         // 解析目标槽位（戒指/手镯智能选择空槽）
         const targetSlot = resolveEquipSlot(character, equipment);
 
