@@ -332,13 +332,14 @@ export class Player {
   private updateMoveAnimation(delta: number): void {
     if (this.isMage && this.sprite) {
       // 法师精灵动画
+      const curAnim = this.sprite.anims.currentAnim;
       if (this.isMoving) {
-        if (this.sprite.anims.currentAnim?.key !== 'wizard_walk') {
-          this.sprite.play('wizard_walk');
+        if (!curAnim || curAnim.key !== 'wizard_walk') {
+          this.sprite.play('wizard_walk', true);
         }
       } else {
-        if (this.sprite.anims.currentAnim?.key !== 'wizard_idle') {
-          this.sprite.play('wizard_idle');
+        if (!curAnim || curAnim.key !== 'wizard_idle') {
+          this.sprite.play('wizard_idle', true);
         }
       }
       return;
@@ -402,7 +403,7 @@ export class Player {
     if (Player.wizardAnimsCreated) return;
     Player.wizardAnimsCreated = true;
 
-    const COLS = 34;
+    const COLS = 20;
     const wiz = (row: number, start: number, end: number) => {
       const s = row * COLS + start;
       const e = row * COLS + end;
