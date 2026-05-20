@@ -89,6 +89,8 @@ export class Player {
     const size = TILE_SIZE - 4;
 
     if (this.isMage) {
+      // 确保法师动画已创建（可能在任意场景中首次创建Player）
+      this.ensureWizardAnims(scene);
       // 法师使用精灵图
       this.sprite = scene.add.sprite(0, 0, 'wizard');
       this.sprite.setScale(TILE_SIZE / 128);
@@ -392,5 +394,26 @@ export class Player {
 
   destroy(): void {
     this.container.destroy(true);
+  }
+
+  private static wizardAnimsCreated = false;
+
+  private ensureWizardAnims(scene: Phaser.Scene): void {
+    if (Player.wizardAnimsCreated) return;
+    Player.wizardAnimsCreated = true;
+
+    const COLS = 21;
+    const wiz = (row: number, start: number, end: number) => {
+      const s = row * COLS + start;
+      const e = row * COLS + end;
+      return scene.anims.generateFrameNumbers('wizard', { start: s, end: e });
+    };
+    scene.anims.create({ key: 'wizard_idle', frames: wiz(0, 0, 7), frameRate: 10, repeat: -1 });
+    scene.anims.create({ key: 'wizard_walk', frames: wiz(1, 0, 7), frameRate: 10, repeat: -1 });
+    scene.anims.create({ key: 'wizard_spell', frames: wiz(2, 0, 12), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_attack', frames: wiz(3, 0, 12), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_buff', frames: wiz(4, 0, 16), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_hurt', frames: wiz(5, 0, 4), frameRate: 15, repeat: 0 });
+    scene.anims.create({ key: 'wizard_death', frames: wiz(6, 0, 9), frameRate: 10, repeat: 0 });
   }
 }

@@ -697,21 +697,6 @@ export class DungeonScene extends Phaser.Scene {
       this.anims.create({ key: `${prefix}_dead`, frames: this.anims.generateFrameNumbers(`${prefix}_dead`, { start: 0, end: 5 }), frameRate: rate, repeat: 0 });
       this.anims.create({ key: `${prefix}_stand`, frames: this.anims.generateFrameNumbers(`${prefix}_stand`, { start: 0, end: 5 }), frameRate: rate, repeat: -1 });
     }
-
-    // 法师角色精灵表动画 (128x128每帧，21帧/行)
-    const COLS = 21;
-    const wiz = (row: number, start: number, end: number) => {
-      const s = row * COLS + start;
-      const e = row * COLS + end;
-      return this.anims.generateFrameNumbers('wizard', { start: s, end: e });
-    };
-    this.anims.create({ key: 'wizard_idle', frames: wiz(0, 0, 7), frameRate: 10, repeat: -1 });
-    this.anims.create({ key: 'wizard_walk', frames: wiz(1, 0, 7), frameRate: 10, repeat: -1 });
-    this.anims.create({ key: 'wizard_spell', frames: wiz(2, 0, 12), frameRate: 15, repeat: 0 });
-    this.anims.create({ key: 'wizard_attack', frames: wiz(3, 0, 12), frameRate: 15, repeat: 0 });
-    this.anims.create({ key: 'wizard_buff', frames: wiz(4, 0, 16), frameRate: 15, repeat: 0 });
-    this.anims.create({ key: 'wizard_hurt', frames: wiz(5, 0, 4), frameRate: 15, repeat: 0 });
-    this.anims.create({ key: 'wizard_death', frames: wiz(6, 0, 9), frameRate: 10, repeat: 0 });
   }
 
   private applyMonsterWalkability(): void {
