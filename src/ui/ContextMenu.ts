@@ -11,16 +11,19 @@ export interface ContextMenuOption {
 export class ContextMenu {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
-  private bg: Phaser.GameObjects.Rectangle | null = null;
-  private optionBgs: Phaser.GameObjects.Rectangle[] = [];
   isOpen = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    this.container = scene.add.container(0, 0);
-    this.container.setDepth(7000);
-    this.container.setScrollFactor(0);
-    this.container.setVisible(false);
+    this.container = this.createContainer();
+  }
+
+  private createContainer(): Phaser.GameObjects.Container {
+    const c = this.scene.add.container(0, 0);
+    c.setDepth(7000);
+    c.setScrollFactor(0);
+    c.setVisible(false);
+    return c;
   }
 
   show(x: number, y: number, options: ContextMenuOption[]): void {
@@ -28,7 +31,6 @@ export class ContextMenu {
     this.isOpen = true;
 
     const optH = 28;
-    const padX = 12;
     const padY = 6;
     const menuW = 100;
     const menuH = options.length * optH + padY * 2;
@@ -39,12 +41,12 @@ export class ContextMenu {
     const finalY = Math.min(y, cam.height - menuH - 4);
 
     // 背景
-    this.bg = this.scene.add.rectangle(
+    const bg = this.scene.add.rectangle(
       finalX + menuW / 2, finalY + menuH / 2,
       menuW, menuH, 0x1a1a2e, 0.95,
     );
-    this.bg.setStrokeStyle(1, 0x555577);
-    this.container.add(this.bg);
+    bg.setStrokeStyle(1, 0x555577);
+    this.container.add(bg);
 
     // 选项
     options.forEach((opt, i) => {
@@ -75,7 +77,6 @@ export class ContextMenu {
 
       this.container.add(optBg);
       this.container.add(text);
-      this.optionBgs.push(optBg);
     });
 
     this.container.setVisible(true);
@@ -84,7 +85,6 @@ export class ContextMenu {
     this.scene.time.delayedCall(0, () => {
       this.scene.input.once('pointerdown', (pointer: Phaser.Input.Pointer) => {
         if (!this.isOpen) return;
-        // 检查点击是否在菜单范围内
         const bounds = this.container.getBounds();
         if (!bounds.contains(pointer.x, pointer.y)) {
           this.hide();
@@ -96,17 +96,10 @@ export class ContextMenu {
   hide(): void {
     if (!this.isOpen) return;
     this.isOpen = false;
-    // 先禁用所有交互，防止隐藏后仍响应鼠标事件
-    for (const optBg of this.optionBgs) {
-      optBg.disableInteractive();
-    }
-    for (const child of this.container.list) {
-      (child as Phaser.GameObjects.GameObject).destroy();
-    }
-    this.container.removeAll(false);
-    this.optionBgs = [];
-    this.bg = null;
-    this.container.setVisible(false);
+    // 销毁整个容器及其所有子对象，确保无残留
+    this.container.destroy(true);
+    // 重建容器供下次使用
+    this.container = this.createContainer();
   }
 
   destroy(): void {
