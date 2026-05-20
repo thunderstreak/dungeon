@@ -96,6 +96,10 @@ export class ContextMenu {
   hide(): void {
     if (!this.isOpen) return;
     this.isOpen = false;
+    // 先禁用所有交互，防止隐藏后仍响应鼠标事件
+    for (const optBg of this.optionBgs) {
+      optBg.disableInteractive();
+    }
     for (const child of this.container.list) {
       (child as Phaser.GameObjects.GameObject).destroy();
     }

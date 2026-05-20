@@ -267,16 +267,19 @@ export class InventoryPanel extends BasePanel {
 
     const item = slot.item;
     const count = slot.count;
+    const rarity = slot.equipmentData?.rarity ?? 'white';
 
-    // 从背包移除
-    if (!removeItem(character, item.id, count)) return;
+    // 直接清除被点击的槽位（避免removeItem按ID搜索删错槽位）
+    slot.item = null;
+    slot.count = 0;
+    slot.equipmentData = undefined;
 
     // 构建地面掉落物数据
     const groundItem: GroundLootItem = {
       itemId: item.id,
       name: item.name,
       type: item.type === 'equipment' ? 'equipment' : item.type === 'consumable' ? 'potion' : 'material',
-      rarity: (slot.equipmentData?.rarity ?? 'white') as EquipmentRarity,
+      rarity: rarity as EquipmentRarity,
       count,
     };
 
