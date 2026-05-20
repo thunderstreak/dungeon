@@ -93,7 +93,7 @@ export class Player {
       this.ensureWizardAnims(scene);
       // 法师使用精灵图
       this.sprite = scene.add.sprite(0, 0, 'wizard');
-      this.sprite.setScale(TILE_SIZE / 128);
+      this.sprite.setScale(TILE_SIZE / 128, TILE_SIZE / 128);
       this.sprite.play('wizard_idle');
       this.container.add(this.sprite);
       // body 保留为空容器，避免 null 检查
@@ -402,7 +402,7 @@ export class Player {
     if (Player.wizardAnimsCreated) return;
     Player.wizardAnimsCreated = true;
 
-    const COLS = 21;
+    const COLS = 34;
     const wiz = (row: number, start: number, end: number) => {
       const s = row * COLS + start;
       const e = row * COLS + end;
