@@ -86,6 +86,13 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet('wizard_jump', 'sprites/Wizard/jump.png', { frameWidth: 96, frameHeight: 96 });
     this.load.spritesheet('wizard_spawn', 'sprites/Wizard/spawn.png', { frameWidth: 128, frameHeight: 128 });
 
+    // 地牢地板 (64x64)
+    this.load.image('floor_tile', 'sprites/bg/floor.png');
+
+    // 地牢墙壁 (横墙64x20, 纵墙16x69)
+    this.load.image('wall_x', 'sprites/bg/wall-x.png');
+    this.load.image('wall_y', 'sprites/bg/wall-y.png');
+
     // 战士角色精灵表 (32x32每帧，15排)
     this.load.spritesheet('warrior', 'sprites/Adventurer-Sprite-Sheet.png', { frameWidth: 32, frameHeight: 32 });
   }

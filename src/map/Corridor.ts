@@ -47,10 +47,10 @@ export class Corridor {
   }
 
   /** 创建正方形瓦片 */
-  private createTile(x: number, y: number, color: number): Phaser.GameObjects.Rectangle {
-    const rect = this.scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, color);
-    rect.setOrigin(0.5, 0.5);
-    return rect;
+  private createTile(x: number, y: number, _color: number): Phaser.GameObjects.Image {
+    const img = this.scene.add.image(x, y, 'floor_tile');
+    img.setOrigin(0.5, 0.5);
+    return img;
   }
 
   /** 清除所有图形 */

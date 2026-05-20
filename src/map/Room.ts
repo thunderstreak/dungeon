@@ -59,7 +59,13 @@ export class Room {
     const template = getTemplate(this.type);
     const floorColor = template?.floorColor ?? 0x2a2a3a;
 
-    // 绘制地板
+    // 构建可行走格子集合，用于判断边界
+    const walkableSet = new Set<string>();
+    for (const tile of this.layout.walkableTiles) {
+      walkableSet.add(`${tile.x},${tile.y}`);
+    }
+
+    // 绘制地板 + 墙壁
     for (const tile of this.layout.walkableTiles) {
       const pos = isoToScreen(tile.x, tile.y);
       const screenX = pos.screenX + offsetX;
@@ -68,6 +74,36 @@ export class Room {
       const tileRect = this.createTile(screenX, screenY, floorColor);
       tileRect.setDepth(getDepthSort(tile.y));
       this.container.add(tileRect);
+
+      // 检查四个方向，非可行走则放置墙壁
+      // 上方 (y-1) → wall-x 横墙
+      if (!walkableSet.has(`${tile.x},${tile.y - 1}`)) {
+        const wall = this.scene.add.image(screenX, screenY - TILE_SIZE / 2, 'wall_x');
+        wall.setOrigin(0.5, 1);
+        wall.setDepth(getDepthSort(tile.y) - 1);
+        this.container.add(wall);
+      }
+      // 下方 (y+1) → wall-x 横墙
+      if (!walkableSet.has(`${tile.x},${tile.y + 1}`)) {
+        const wall = this.scene.add.image(screenX, screenY + TILE_SIZE / 2, 'wall_x');
+        wall.setOrigin(0.5, 0);
+        wall.setDepth(getDepthSort(tile.y + 1));
+        this.container.add(wall);
+      }
+      // 左方 (x-1) → wall-y 纵墙
+      if (!walkableSet.has(`${tile.x - 1},${tile.y}`)) {
+        const wall = this.scene.add.image(screenX - TILE_SIZE / 2, screenY, 'wall_y');
+        wall.setOrigin(1, 0.5);
+        wall.setDepth(getDepthSort(tile.y) - 0.5);
+        this.container.add(wall);
+      }
+      // 右方 (x+1) → wall-y 纵墙
+      if (!walkableSet.has(`${tile.x + 1},${tile.y}`)) {
+        const wall = this.scene.add.image(screenX + TILE_SIZE / 2, screenY, 'wall_y');
+        wall.setOrigin(0, 0.5);
+        wall.setDepth(getDepthSort(tile.y) + 0.5);
+        this.container.add(wall);
+      }
     }
 
     // 绘制障碍物
@@ -182,10 +218,10 @@ export class Room {
   }
 
   /** 创建正方形瓦片 */
-  private createTile(x: number, y: number, color: number): Phaser.GameObjects.Rectangle {
-    const rect = this.scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, color);
-    rect.setOrigin(0.5, 0.5);
-    return rect;
+  private createTile(x: number, y: number, _color: number): Phaser.GameObjects.Image {
+    const img = this.scene.add.image(x, y, 'floor_tile');
+    img.setOrigin(0.5, 0.5);
+    return img;
   }
 
   /** 清除所有图形 */

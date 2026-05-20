@@ -183,27 +183,29 @@ export class DungeonScene extends Phaser.Scene {
     this.scene.stop('UIScene');
     this.scene.launch('UIScene');
 
-    // 深渊模式选择（进入地牢时触发）
-    const abyssTriggered = tryTriggerAbyss(this.dungeonState);
-    if (abyssTriggered) {
-      const uiScene = this.scene.get('UIScene') as UIScene | null;
-      if (uiScene) {
-        uiScene.showAbyssChoice(
-          () => {
-            this.dungeonState.isAbyss = true;
-            this.spawnAllRoomMonsters();
-          },
-          () => {
-            this.dungeonState.isAbyss = false;
-            this.spawnAllRoomMonsters();
-          },
-        );
+    // 深渊模式选择（进入地牢时触发，延迟一帧等待UIScene就绪）
+    this.time.delayedCall(0, () => {
+      const abyssTriggered = tryTriggerAbyss(this.dungeonState);
+      if (abyssTriggered) {
+        const uiScene = this.scene.get('UIScene') as UIScene | null;
+        if (uiScene) {
+          uiScene.showAbyssChoice(
+            () => {
+              this.dungeonState.isAbyss = true;
+              this.spawnAllRoomMonsters();
+            },
+            () => {
+              this.dungeonState.isAbyss = false;
+              this.spawnAllRoomMonsters();
+            },
+          );
+        } else {
+          this.spawnAllRoomMonsters();
+        }
       } else {
         this.spawnAllRoomMonsters();
       }
-    } else {
-      this.spawnAllRoomMonsters();
-    }
+    });
 
     this.cameras.main.fadeIn(300);
   }
