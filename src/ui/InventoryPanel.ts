@@ -84,6 +84,19 @@ export class InventoryPanel extends BasePanel {
       this.categoryTexts.push(text);
     });
 
+    // 整理按钮（关闭按钮左侧）
+    const sortBtn = this.scene.add.rectangle(px + panelW - 55, py + 10, 40, 20, 0x335533);
+    sortBtn.setStrokeStyle(1, 0x55aa55);
+    sortBtn.setInteractive({ useHandCursor: true });
+    sortBtn.on('pointerdown', () => this.sortInventory());
+    sortBtn.on('pointerover', () => sortBtn.setFillStyle(0x447744));
+    sortBtn.on('pointerout', () => sortBtn.setFillStyle(0x335533));
+    const sortText = this.scene.add.text(px + panelW - 55, py + 10, '整理', {
+      fontSize: '11px', color: '#aaffaa',
+    }).setOrigin(0.5);
+    this.container.add(sortBtn);
+    this.container.add(sortText);
+
     // 物品格子 (5列×4行)
     const cols = 5;
     const slotSize = 48;
@@ -240,6 +253,40 @@ export class InventoryPanel extends BasePanel {
       this.categoryTexts[i].setColor(selected ? '#ffffff' : '#aaaacc');
     });
     this.refreshSlots();
+  }
+
+  /** 整理当前分类背包：有物品的槽位前置，空槽位后置 */
+  private sortInventory(): void {
+    const char = gameState.getCharacter();
+    if (!char) return;
+
+    const category = this.currentCategory;
+    const slots = char.inventory.categories[category];
+    const maxSlots = char.inventory.maxSlotsPerCategory;
+
+    // 稀有度排序权重
+    const rarityOrder: Record<string, number> = { orange: 0, pink: 1, purple: 2, blue: 3, white: 4 };
+
+    // 分离有物品和空的槽位
+    const filled = slots.filter(s => s.item !== null);
+    const empty = slots.filter(s => s.item === null);
+
+    // 有物品的槽位按稀有度排序（高稀有度在前）
+    filled.sort((a, b) => {
+      const ra = a.equipmentData ? (rarityOrder[a.equipmentData.rarity] ?? 5) : 5;
+      const rb = b.equipmentData ? (rarityOrder[b.equipmentData.rarity] ?? 5) : 5;
+      return ra - rb;
+    });
+
+    // 重建槽位数组：有物品的在前，空的在后，不足则补空槽
+    const sorted: InventorySlot[] = [...filled];
+    while (sorted.length < maxSlots) {
+      sorted.push({ item: null, count: 0 });
+    }
+    char.inventory.categories[category] = sorted.slice(0, maxSlots);
+
+    this.refreshSlots();
+    showNotification(this.scene, '背包已整理', '#aaffaa');
   }
 
   private showContextMenu(x: number, y: number, slot: InventorySlot, _slotIdx: number): void {

@@ -4,6 +4,14 @@
 
 A 2D isometric pixel-art dungeon crawler RPG built with Phaser 3, TypeScript, and Vite.
 
+## Preview
+
+![Dungeon Explorer preview 1](./preview/ScreenShot_2026-05-20_142237_305.png)
+
+![Dungeon Explorer preview 2](./preview/ScreenShot_2026-05-20_142257_471.png)
+
+![Dungeon Explorer preview 3](./preview/ScreenShot_2026-05-20_142315_487.png)
+
 ## Overview
 
 Dungeon Explorer is a real-time combat RPG featuring:

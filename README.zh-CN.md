@@ -4,6 +4,14 @@
 
 一款基于 Phaser 3、TypeScript 和 Vite 构建的 2D 等距像素风地牢探险 RPG。
 
+## 项目预览
+
+![地牢探险预览图 1](./preview/ScreenShot_2026-05-20_142237_305.png)
+
+![地牢探险预览图 2](./preview/ScreenShot_2026-05-20_142257_471.png)
+
+![地牢探险预览图 3](./preview/ScreenShot_2026-05-20_142315_487.png)
+
 ## 项目简介
 
 地牢探险是一款实时战斗 RPG ，具备以下核心特性：
