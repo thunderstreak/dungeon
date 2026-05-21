@@ -5,25 +5,19 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/config';
 import { ISO_TILE_WIDTH, ISO_TILE_HEIGHT } from '@/config/constants';
 import { gameState } from '@/state/GameState';
 import { Player } from '@/entities/Player';
-import { createMonster, createBoss, spawnMonstersInRoom } from '@/entities/monsters/MonsterFactory';
 import { Monster } from '@/entities/Monster';
 import { Boss } from '@/entities/Boss';
 import { showNotification } from '@/ui/NotificationToast';
-import { calcPhysicalDamage, applyDamage } from '@/systems/BattleSystem';
-import { executeSkillDamage, isSkillReady, getPassiveTriggerEffects } from '@/systems/SkillSystem';
-import { ALL_SKILLS } from '@/data/skills';
 import type { Equipment, SkillSlot } from '@/config/types';
-import { calculateMonsterDrop, calculateBossDrop, PityCounter } from '@/systems/DropSystem';
-import { addExperience } from '@/systems/LevelSystem';
-import { addGold, addEquipment, addItem } from '@/systems/InventorySystem';
+import { PityCounter } from '@/systems/DropSystem';
+import { addEquipment, addItem } from '@/systems/InventorySystem';
 import { GroundLoot } from '@/entities/GroundLoot';
-import { generateLootItems } from '@/systems/LootGenerator';
 import { getEquipmentById } from '@/data/equipment';
 import { getPotionById, getMaterialById } from '@/data/items';
 import { RARITY_COLORS } from '@/config/constants';
 import type { Item } from '@/config/types';
 import { applyDeathPenalty } from '@/systems/DeathSystem';
-import { createDungeonState, tryTriggerAbyss, getFloorMultiplier, onBossDefeated } from '@/systems/DungeonSystem';
+import { createDungeonState, tryTriggerAbyss } from '@/systems/DungeonSystem';
 import type { DungeonState } from '@/systems/DungeonSystem';
 import { consumeDurability } from '@/systems/EquipmentSystem';
 import { RoomGenerator } from '@/map/RoomGenerator';
@@ -33,6 +27,9 @@ import { CORRIDOR_WIDTH } from '@/systems/MapGenerator';
 import { createFloorWalkability, type FloorWalkability } from '@/systems/FloorWalkability';
 import type { MiniMapMonster } from '@/ui/MiniMap';
 import type { UIScene } from './UIScene';
+import type { DungeonContext } from '@/systems/DungeonContext';
+import { attackMonster as cmAttack, castSkillOnTarget as cmCastSkill, onMonsterDeath as cmOnDeath } from '@/systems/CombatManager';
+import { checkRoomTransition as rmCheck, spawnAllRoomMonsters as rmSpawnAll, onRoomCleared as rmCleared } from '@/systems/RoomManager';
 
 export class DungeonScene extends Phaser.Scene {
   private player!: Player;
@@ -44,6 +41,7 @@ export class DungeonScene extends Phaser.Scene {
   private roomCleared = false;
   private attackCooldown = 0;
   private playerDead = false;
+  private ctx!: DungeonContext;
   private clickTargetMarker: Phaser.GameObjects.Arc | null = null;
   private clickTargetLine: Phaser.GameObjects.Graphics | null = null;
   private floor = 1;
@@ -120,6 +118,23 @@ export class DungeonScene extends Phaser.Scene {
     const playerGridY = this.currentRoom.roomData.position.y + this.currentRoom.roomData.position.height / 2;
     this.player = new Player(this, character, Math.round(playerGridX), Math.round(playerGridY));
 
+    // 初始化共享上下文
+    this.ctx = {
+      scene: this,
+      player: this.player,
+      monsters: this.monsters,
+      roomMonsters: this.roomMonsters,
+      currentRoom: this.currentRoom,
+      roomGenerator: this.roomGenerator,
+      floor: this.floor,
+      dungeonState: this.dungeonState,
+      floorWalkability: this.floorWalkability,
+      roomsEntered: this.roomsEntered,
+      groundLoots: this.groundLoots,
+      roomCleared: this.roomCleared,
+      pity: this.pity,
+    };
+
     // 碰撞检测：整层房间 + 走廊都可探索，且不能走到怪物/Boss所在的格子
     this.player.isWalkable = (gx, gy) => {
       const floorOk = this.floorWalkability.isWalkable(gx, gy);
@@ -170,7 +185,7 @@ export class DungeonScene extends Phaser.Scene {
 
         // 在攻击范围内 → 直接攻击
         if (this.player.isInRange(monster)) {
-          this.attackMonster(monster);
+          cmAttack(this.ctx, monster);
         }
       }
     });
@@ -209,18 +224,18 @@ export class DungeonScene extends Phaser.Scene {
           uiScene.showAbyssChoice(
             () => {
               this.dungeonState.isAbyss = true;
-              this.spawnAllRoomMonsters();
+              rmSpawnAll(this.ctx, this.onMonsterDeath.bind(this));
             },
             () => {
               this.dungeonState.isAbyss = false;
-              this.spawnAllRoomMonsters();
+              rmSpawnAll(this.ctx, this.onMonsterDeath.bind(this));
             },
           );
         } else {
-          this.spawnAllRoomMonsters();
+          rmSpawnAll(this.ctx, this.onMonsterDeath.bind(this));
         }
       } else {
-        this.spawnAllRoomMonsters();
+        rmSpawnAll(this.ctx, this.onMonsterDeath.bind(this));
       }
     });
 
@@ -232,8 +247,16 @@ export class DungeonScene extends Phaser.Scene {
 
     this.player.update(delta);
 
+    // 同步上下文
+    this.syncCtx();
+
     // 检测房间切换
-    this.checkRoomTransition();
+    rmCheck(this.ctx);
+
+    // 房间切换后同步怪物列表回来
+    this.monsters = this.ctx.monsters;
+    this.currentRoom = this.ctx.currentRoom;
+    this.roomCleared = this.ctx.roomCleared;
 
     // 更新怪物AI
     const playerGrid = this.player.getGridPosition();
@@ -271,7 +294,8 @@ export class DungeonScene extends Phaser.Scene {
     // 检查房间通关
     if (!this.roomCleared && this.monsters.every(m => m.isDead)) {
       this.roomCleared = true;
-      this.onRoomCleared();
+      this.ctx.roomCleared = true;
+      rmCleared(this.ctx);
     }
 
     // 更新地面掉落物 + 拾取检测
@@ -295,76 +319,17 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
-  /** 在指定房间生成怪物 */
-  private spawnMonstersForRoom(room: Room): void {
-    const spawnPositions = room.getMonsterSpawnPositions();
-    const density = 0.04;
-    const floorMultiplier = getFloorMultiplier(this.floor, this.dungeonState.isAbyss);
-
-    const roomMonsters = spawnMonstersInRoom(
-      this,
-      spawnPositions,
-      this.floor,
-      floorMultiplier,
-      density,
-    );
-
-    this.roomMonsters.set(room.id, roomMonsters);
-
-    // 设置死亡回调
-    for (const monster of roomMonsters) {
-      monster.onDeath = (m: Monster | Boss) => this.onMonsterDeath(m);
-    }
+  /** 同步上下文字段到ctx对象 */
+  private syncCtx(): void {
+    this.ctx.monsters = this.monsters;
+    this.ctx.currentRoom = this.currentRoom;
+    this.ctx.roomCleared = this.roomCleared;
+    this.ctx.floor = this.floor;
   }
 
-  /** 为所有非Boss房间生成普通怪物 */
-  private spawnAllRoomMonsters(): void {
-    const allRooms = this.roomGenerator.getAllRooms();
-    for (const room of allRooms) {
-      if (room.type === 'boss') continue;
-      this.spawnMonstersForRoom(room);
-    }
-    // 更新当前房间怪物列表
-    this.monsters = this.roomMonsters.get(this.currentRoom.id) ?? [];
-  }
-
-  /** 检测玩家是否进入了新房间 */
-  private checkRoomTransition(): void {
-    const pg = this.player.getGridPosition();
-    for (const room of this.roomGenerator.getAllRooms()) {
-      const pos = room.roomData.position;
-      if (pg.x >= pos.x && pg.x < pos.x + pos.width
-        && pg.y >= pos.y && pg.y < pos.y + pos.height) {
-        if (room.id !== this.currentRoom.id) {
-          this.enterRoom(room);
-        }
-        return;
-      }
-    }
-  }
-
-  /** 进入新房间 */
-  private enterRoom(room: Room): void {
-    // 始终切换当前房间和怪物列表
-    this.currentRoom = room;
-    this.monsters = this.roomMonsters.get(room.id) ?? [];
-
-    // 如果这个房间之前已经触发过通关事件，不再重复触发
-    if (this.roomsEntered.has(room.id)) {
-      this.roomCleared = true;
-      return;
-    }
-
-    if (room.isCleared) {
-      // 已通关的房间，直接标记为已处理，不触发通关事件
-      this.roomsEntered.add(room.id);
-      this.roomCleared = true;
-    } else {
-      // 未通关的房间
-      room.isEntered = true;
-      this.roomCleared = false;
-      this.applyMonsterWalkability();
-    }
+  /** 怪物死亡（委托到CombatManager） */
+  private onMonsterDeath(monster: Monster | Boss): void {
+    cmOnDeath(this.ctx, monster);
   }
 
   /** 显示点击目标标记（沿BFS路径的折线 + 目标脉冲） */
@@ -427,264 +392,9 @@ export class DungeonScene extends Phaser.Scene {
     });
   }
 
-  /** 攻击怪物 */
-  private attackMonster(monster: Monster | Boss): void {
-    if (this.playerDead) return;
-
-    const now = this.time.now;
-    const cooldown = 160000 / this.player.character.stats.attackSpeed;
-    if (now - this.attackCooldown < cooldown) return;
-    this.attackCooldown = now;
-
-    this.player.playAttackAnimation({ x: monster.container.x, y: monster.container.y }, () => {
-      const result = calcPhysicalDamage(this.player.combatEntity.stats, monster.combatEntity.stats);
-      applyDamage(monster.combatEntity, result);
-      monster.takeDamage(result.finalDamage, result.isCritical, false, this.player.combatEntity);
-      monster.flashHit();
-
-      // 被动技能触发效果
-      if (!result.isDodged) {
-        const triggers = getPassiveTriggerEffects(this.player.character);
-        for (const trigger of triggers) {
-          if (Math.random() * 100 >= trigger.value) continue;
-          const validDebuffs: Record<string, import('@/config/types').DebuffType> = {
-            bleed_chance: 'bleed',
-            freeze_chance: 'freeze',
-            stun_chance: 'stun',
-            burn_on_hit: 'burn',
-          };
-          const debuffType = validDebuffs[trigger.type];
-          if (debuffType) {
-            monster.combatEntity.buffManager.addBuff({
-              id: `passive_${trigger.type}_${monster.combatEntity.id}`,
-              name: trigger.type,
-              type: 'debuff',
-              debuffType,
-              duration: 3,
-              maxDuration: 3,
-              value: 1,
-              maxStack: 1,
-              source: 'passive',
-              icon: 'passive',
-            });
-          }
-        }
-      }
-
-      // 屏幕震动
-      this.cameras.main.shake(100, 0.005);
-
-      // 武器耐久损耗（每次攻击-1）
-      const character = gameState.getCharacter();
-      if (character.equipment.weapon) {
-        consumeDurability(character, 'weapon', 1);
-      }
-    });
-  }
-
-  /** 释放魔法弹道（追踪目标当前位置） */
-  private fireProjectile(target: Monster | Boss, skillId: string, onHit: () => void): void {
-    // 根据技能选择弹道颜色和大小
-    const colorMap: Record<string, { color: number; radius: number; speed: number }> = {
-      mage_fireball: { color: 0xff4400, radius: 5, speed: 200 },
-      mage_ice_bolt: { color: 0x44aaff, radius: 4, speed: 250 },
-      mage_chain_lightning: { color: 0xffff44, radius: 3, speed: 300 },
-    };
-    const config = colorMap[skillId] ?? { color: 0xaa44ff, radius: 4, speed: 225 };
-
-    const projectile = this.add.circle(this.player.container.x, this.player.container.y - 20, config.radius, config.color);
-    projectile.setDepth(2000);
-
-    // 每帧更新弹道方向，追踪目标当前位置
-    const hitDistance = 10; // 判定命中距离（像素）
-    const timer = this.time.addEvent({
-      delay: 16, // ~60fps
-      loop: true,
-      callback: () => {
-        if (target.isDead || !target.container.active) {
-          projectile.destroy();
-          timer.destroy();
-          return;
-        }
-        const tx = target.container.x;
-        const ty = target.container.y;
-        const dist = Phaser.Math.Distance.Between(projectile.x, projectile.y, tx, ty);
-        if (dist <= hitDistance) {
-          projectile.destroy();
-          timer.destroy();
-          onHit();
-          return;
-        }
-        // 朝目标移动
-        const speed = config.speed * (16 / 1000); // 每帧移动像素
-        const angle = Phaser.Math.Angle.Between(projectile.x, projectile.y, tx, ty);
-        projectile.x += Math.cos(angle) * speed;
-        projectile.y += Math.sin(angle) * speed;
-      },
-    });
-  }
-
-  /** 释放技能（区分远程弹道和近战瞬发） */
+  /** 释放技能（委托到CombatManager） */
   castSkillOnTarget(skillSlot: SkillSlot, target: Monster | Boss): void {
-    if (this.playerDead || target.isDead) return;
-
-    const skillData = ALL_SKILLS.find(s => s.id === skillSlot.skillId);
-    if (!skillData) return;
-
-    const character = gameState.getCharacter();
-    if (!isSkillReady(character, skillSlot.skillId)) return;
-
-    // 近战物理需要在攻击范围内（MP/冷却前检查）
-    if (skillData.damage?.type !== 'magic' && !this.player.isInRange(target)) return;
-
-    // 消耗MP和设置冷却（立即生效，防止连按）
-    if (skillData.manaCost) character.stats.mp -= skillData.manaCost;
-    if (skillData.cooldown) skillSlot.cooldownRemaining = skillData.cooldown;
-
-    if (skillData.damage?.type === 'magic') {
-      // 远程魔法：先弹道再伤害（无距离限制）
-      this.fireProjectile(target, skillSlot.skillId, () => {
-        const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level, this.player.character);
-        if (result) {
-          if (target instanceof Monster) {
-            target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
-            target.flashHit();
-          } else if (target instanceof Boss) {
-            target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
-            target.flashHit();
-          }
-        }
-        this.player.syncHp();
-      });
-    } else {
-      // 近战物理
-      const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level, this.player.character);
-      if (result) {
-        if (target instanceof Monster) {
-          target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
-          target.flashHit();
-        } else if (target instanceof Boss) {
-          target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
-          target.flashHit();
-        }
-      }
-      this.player.syncHp();
-    }
-  }
-
-  /** 怪物死亡 */
-  private onMonsterDeath(monster: Monster | Boss): void {
-    // 如果玩家正在攻击此怪物，清除目标
-    if (this.player.attackTarget === monster) {
-      this.player.clearTarget();
-    }
-
-    const character = gameState.getCharacter();
-
-    // 掉落计算（Boss和Monster使用不同的数据结构）
-    let goldAmount: number;
-    let expAmount: number;
-    if (monster instanceof Monster) {
-      const drop = calculateMonsterDrop(monster.monsterData, 1.0, false, this.pity);
-      goldAmount = drop.goldAmount;
-      expAmount = drop.expAmount;
-      // 生成地面掉落物
-      const lootItems = generateLootItems(drop, character.level);
-      for (const item of lootItems) {
-        const pos = this.findWalkableDropPosition(monster.gridX, monster.gridY);
-        const loot = new GroundLoot(this, item, pos.x, pos.y);
-        this.groundLoots.push(loot);
-      }
-    } else {
-      // Boss掉落：使用calculateBossDrop
-      const boss = monster as Boss;
-      const isFirstKill = !this.dungeonState.bossDefeatedFloors.has(this.floor);
-      const drop = calculateBossDrop(boss.bossData, isFirstKill);
-      goldAmount = drop.goldAmount;
-      expAmount = drop.expAmount;
-      // 生成地面掉落物
-      const lootItems = generateLootItems(drop, character.level);
-      for (const item of lootItems) {
-        const pos = this.findWalkableDropPosition(monster.gridX, monster.gridY);
-        const loot = new GroundLoot(this, item, pos.x, pos.y);
-        this.groundLoots.push(loot);
-      }
-    }
-
-    addGold(character, goldAmount);
-    const levelResult = addExperience(character, expAmount);
-
-    showNotification(this, `+${goldAmount} 金币  +${expAmount} 经验`, '#ffdd44');
-    if (levelResult.levelsGained > 0) {
-      showNotification(this, `升级! Lv.${levelResult.newLevel}`, '#ff88ff');
-      // 升级后恢复满HP/MP，同步combatEntity
-      this.player.combatEntity.maxHp = character.stats.maxHp;
-      this.player.combatEntity.maxMp = character.stats.maxMp;
-      this.player.combatEntity.hp = character.stats.maxHp;
-      this.player.combatEntity.mp = character.stats.maxMp;
-      this.player.syncHp();
-      this.player.updateHpBar();
-    }
-
-    const idx = this.monsters.indexOf(monster);
-    if (idx !== -1) this.monsters.splice(idx, 1);
-
-    // Boss死亡后标记房间已通关，阻止重生
-    if (monster instanceof Boss) {
-      this.roomCleared = true;
-      onBossDefeated(this.dungeonState, this.floor);
-    }
-  }
-
-  /** 从中心向外螺旋搜索可行走的掉落位置 */
-  private findWalkableDropPosition(centerX: number, centerY: number): { x: number; y: number } {
-    // 先试中心
-    if (this.floorWalkability.isWalkable(centerX, centerY)) {
-      return { x: centerX, y: centerY };
-    }
-    // 螺旋搜索半径1~3
-    for (let r = 1; r <= 3; r++) {
-      const candidates: { x: number; y: number }[] = [];
-      for (let dx = -r; dx <= r; dx++) {
-        for (let dy = -r; dy <= r; dy++) {
-          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-          const tx = centerX + dx;
-          const ty = centerY + dy;
-          if (this.floorWalkability.isWalkable(tx, ty)) {
-            candidates.push({ x: tx, y: ty });
-          }
-        }
-      }
-      if (candidates.length > 0) {
-        return candidates[Math.floor(Math.random() * candidates.length)];
-      }
-    }
-    return { x: centerX, y: centerY };
-  }
-
-  /** 房间通关 */
-  private onRoomCleared(): void {
-    this.roomsEntered.add(this.currentRoom.id);
-    showNotification(this, '房间已清除!', '#44ff44');
-    this.currentRoom.markCleared();
-
-    // Boss房间检查
-    if (this.currentRoom.roomData.type === 'boss') {
-      this.spawnBossInRoom();
-      return;
-    }
-
-    // 获取相邻房间
-    const adjacent = this.roomGenerator.getAdjacentRooms(this.currentRoom.id);
-    if (adjacent.length === 0) {
-      // 没有相邻房间，通关
-      showNotification(this, '地牢通关! 返回城镇', '#ffcc44');
-      this.time.delayedCall(1500, () => this.backToTown());
-      return;
-    }
-
-    // 指向出口方向
-    showNotification(this, '走向相邻房间继续探索', '#66cc66');
+    cmCastSkill(this.ctx, skillSlot, target);
   }
 
   /** 玩家死亡 */
@@ -810,37 +520,6 @@ export class DungeonScene extends Phaser.Scene {
     }
 
     return { rooms, playerGrid: this.player.getGridPosition(), monsters };
-  }
-
-  /** 在Boss房间生成Boss */
-  private spawnBossInRoom(): void {
-    const spawnPositions = this.currentRoom.getMonsterSpawnPositions();
-    if (spawnPositions.length === 0) return;
-
-    const pos = spawnPositions[0];
-    const floorMultiplier = getFloorMultiplier(this.floor, this.dungeonState.isAbyss);
-
-    const boss = createBoss(this, {
-      floor: this.floor,
-      gridX: pos.x,
-      gridY: pos.y,
-      floorMultiplier,
-    }, this.dungeonState.isAbyss);
-
-    boss.onDeath = (m) => this.onMonsterDeath(m);
-    boss.isWalkable = (gx, gy) => {
-      if (!this.floorWalkability.isWalkable(gx, gy)) return false;
-      return !this.isOccupied(gx, gy, boss);
-    };
-    boss.setTarget(this.player.combatEntity);
-
-    // 使用roomMonsters跟踪Boss
-    const bossMonsters = [boss];
-    this.roomMonsters.set(this.currentRoom.id, bossMonsters);
-    this.monsters = bossMonsters;
-    this.roomCleared = false;
-
-    showNotification(this, `Boss出现: ${boss.bossData.name}!`, '#ff4444');
   }
 
   /** 注册怪物动画 */

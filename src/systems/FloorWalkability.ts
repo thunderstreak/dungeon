@@ -62,11 +62,11 @@ function getCorridorOrientation(path: Vector2[]): 'x' | 'y' {
 function expandCorridorTile(tile: Vector2, corridorWidth: number, orientation: 'x' | 'y'): Vector2[] {
   if (corridorWidth <= 1) return [tile];
 
-  // X轴走廊向Y方向扩展，Y轴走廊向X方向扩展
+  // 向走廊垂直方向扩展（单方向，与渲染对齐）
   if (orientation === 'x') {
     return [tile, { x: tile.x, y: tile.y + 1 }];
   } else {
-    return [tile, { x: tile.x + 1, y: tile.y }];
+    return [tile, { x: tile.x - 1, y: tile.y }];
   }
 }
 
