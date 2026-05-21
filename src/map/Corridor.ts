@@ -46,10 +46,12 @@ export class Corridor {
     }
   }
 
-  /** 创建正方形瓦片 */
+  /** 创建正方形瓦片（随机选择地板纹理，缩放到格子大小） */
   private createTile(x: number, y: number, _color: number): Phaser.GameObjects.Image {
-    const img = this.scene.add.image(x, y, 'floor_tile');
+    const idx = Math.floor(Math.random() * 6) + 1;
+    const img = this.scene.add.image(x, y, `floor_tile_${idx}`);
     img.setOrigin(0.5, 0.5);
+    img.setDisplaySize(TILE_SIZE, TILE_SIZE);
     return img;
   }
 

@@ -28,7 +28,7 @@ import type { DungeonState } from '@/systems/DungeonSystem';
 import { consumeDurability } from '@/systems/EquipmentSystem';
 import { RoomGenerator } from '@/map/RoomGenerator';
 import type { Room } from '@/map/Room';
-import { isoToScreen } from '@/utils/IsometricUtils';
+import { screenToIso, getTileCenterPosition } from '@/utils/IsometricUtils';
 import { CORRIDOR_WIDTH } from '@/systems/MapGenerator';
 import { createFloorWalkability, type FloorWalkability } from '@/systems/FloorWalkability';
 import type { MiniMapMonster } from '@/ui/MiniMap';
@@ -44,6 +44,8 @@ export class DungeonScene extends Phaser.Scene {
   private roomCleared = false;
   private attackCooldown = 0;
   private playerDead = false;
+  private clickTargetMarker: Phaser.GameObjects.Arc | null = null;
+  private clickTargetLine: Phaser.GameObjects.Graphics | null = null;
   private floor = 1;
   private dungeonState!: DungeonState;
   private floorWalkability!: FloorWalkability;
@@ -84,6 +86,7 @@ export class DungeonScene extends Phaser.Scene {
       })),
       CORRIDOR_WIDTH,
     );
+    console.log(`FloorWalkability bounds: X=[${this.floorWalkability.bounds.minX},${this.floorWalkability.bounds.maxX}] Y=[${this.floorWalkability.bounds.minY},${this.floorWalkability.bounds.maxY}]`);
 
     // 渲染所有房间（无偏移，摄像机自动跟随玩家居中）
     for (const room of rooms) {
@@ -100,7 +103,13 @@ export class DungeonScene extends Phaser.Scene {
 
     // 调试：打印所有房间信息
     for (const room of rooms) {
-      console.log(`房间 ${room.id}: type=${room.type}, pos=(${room.roomData.position.x},${room.roomData.position.y}), size=${room.roomData.position.width}x${room.roomData.position.height}`);
+      const pos = room.roomData.position;
+      const tiles = room.layout.walkableTiles;
+      const minY = tiles.length > 0 ? Math.min(...tiles.map(t => t.y)) : -1;
+      const maxY = tiles.length > 0 ? Math.max(...tiles.map(t => t.y)) : -1;
+      const minX = tiles.length > 0 ? Math.min(...tiles.map(t => t.x)) : -1;
+      const maxX = tiles.length > 0 ? Math.max(...tiles.map(t => t.x)) : -1;
+      console.log(`房间 ${room.id}: type=${room.type}, pos=(${pos.x},${pos.y}), size=${pos.width}x${pos.height}, walkable X=[${minX},${maxX}] Y=[${minY},${maxY}], count=${tiles.length}`);
     }
 
     // 设置当前房间的怪物列表（怪物在深渊选择后生成）
@@ -111,10 +120,15 @@ export class DungeonScene extends Phaser.Scene {
     const playerGridY = this.currentRoom.roomData.position.y + this.currentRoom.roomData.position.height / 2;
     this.player = new Player(this, character, Math.round(playerGridX), Math.round(playerGridY));
 
-    // 碰撞检测：整层房间 + 走廊都可探索，且不能走到怪物所在的格子
+    // 碰撞检测：整层房间 + 走廊都可探索，且不能走到怪物/Boss所在的格子
     this.player.isWalkable = (gx, gy) => {
-      if (!this.floorWalkability.isWalkable(gx, gy)) return false;
-      return !this.monsters.some(m => !m.isDead && m.gridX === gx && m.gridY === gy);
+      const floorOk = this.floorWalkability.isWalkable(gx, gy);
+      const occupied = this.isOccupied(gx, gy);
+      if (!floorOk || occupied) {
+        console.log(`[PlayerWalk] (${gx},${gy}) floor=${floorOk} occupied=${occupied}`);
+      }
+      if (!floorOk) return false;
+      return !occupied;
     };
 
     // 输入
@@ -173,6 +187,9 @@ export class DungeonScene extends Phaser.Scene {
           return;
         }
         this.player.moveToScreen(pointer.x, pointer.y, this.cameras.main.scrollX, this.cameras.main.scrollY);
+
+        // 绘制点击目标标记
+        this.showClickTarget(pointer.x + this.cameras.main.scrollX, pointer.y + this.cameras.main.scrollY);
       }
     });
 
@@ -350,6 +367,66 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
+  /** 显示点击目标标记（沿BFS路径的折线 + 目标脉冲） */
+  private showClickTarget(worldX: number, worldY: number): void {
+    // 移除旧标记
+    this.clickTargetMarker?.destroy();
+    this.clickTargetLine?.destroy();
+
+    // 计算目标格子坐标
+    const targetIso = screenToIso(worldX, worldY);
+    const tgx = Math.round(targetIso.x);
+    const tgy = Math.round(targetIso.y);
+
+    // 使用BFS寻路计算路径
+    const path = this.player.findPath(this.player.gridX, this.player.gridY, tgx, tgy);
+    if (path.length === 0) return;
+
+    // 将格子路径转为屏幕坐标并画折线
+    const graphics = this.add.graphics();
+    graphics.lineStyle(2, 0x44ff44, 0.6);
+    graphics.setDepth(1500);
+
+    // 起点使用玩家实际视觉位置；后续路径点使用瓦片视觉中心，和地板贴图的 origin(0.5, 0.5) 对齐
+    const startPos = this.player.getScreenPosition();
+    let prevX = startPos.x;
+    let prevY = startPos.y;
+    for (let i = 1; i < path.length; i++) {
+      const p = getTileCenterPosition(path[i].x, path[i].y);
+      graphics.lineBetween(prevX, prevY, p.x, p.y);
+      prevX = p.x;
+      prevY = p.y;
+    }
+    this.clickTargetLine = graphics;
+
+    // 目标位置脉冲圆圈落在最终可达路径点上，而不是不可行走区域内的点击点
+    const lastPathTile = path[path.length - 1];
+    const targetScreen = getTileCenterPosition(lastPathTile.x, lastPathTile.y);
+    const marker = this.add.circle(targetScreen.x, targetScreen.y, 6, 0x44ff44, 0.8);
+    marker.setDepth(1501);
+    this.clickTargetMarker = marker;
+
+    // 脉冲动画
+    this.tweens.add({
+      targets: marker,
+      scaleX: 2,
+      scaleY: 2,
+      alpha: 0,
+      duration: 600,
+      ease: 'Cubic.easeOut',
+      onComplete: () => marker.destroy(),
+    });
+
+    // 折线渐隐
+    this.tweens.add({
+      targets: graphics,
+      alpha: 0,
+      duration: 1200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => graphics.destroy(),
+    });
+  }
+
   /** 攻击怪物 */
   private attackMonster(monster: Monster | Boss): void {
     if (this.playerDead) return;
@@ -362,7 +439,7 @@ export class DungeonScene extends Phaser.Scene {
     this.player.playAttackAnimation({ x: monster.container.x, y: monster.container.y }, () => {
       const result = calcPhysicalDamage(this.player.combatEntity.stats, monster.combatEntity.stats);
       applyDamage(monster.combatEntity, result);
-      monster.takeDamage(result.finalDamage, result.isCritical);
+      monster.takeDamage(result.finalDamage, result.isCritical, false, this.player.combatEntity);
       monster.flashHit();
 
       // 被动技能触发效果
@@ -405,36 +482,44 @@ export class DungeonScene extends Phaser.Scene {
     });
   }
 
-  /** 释放魔法弹道 */
+  /** 释放魔法弹道（追踪目标当前位置） */
   private fireProjectile(target: Monster | Boss, skillId: string, onHit: () => void): void {
     // 根据技能选择弹道颜色和大小
     const colorMap: Record<string, { color: number; radius: number; speed: number }> = {
-      mage_fireball: { color: 0xff4400, radius: 5, speed: 400 },
-      mage_ice_bolt: { color: 0x44aaff, radius: 4, speed: 500 },
-      mage_chain_lightning: { color: 0xffff44, radius: 3, speed: 600 },
+      mage_fireball: { color: 0xff4400, radius: 5, speed: 200 },
+      mage_ice_bolt: { color: 0x44aaff, radius: 4, speed: 250 },
+      mage_chain_lightning: { color: 0xffff44, radius: 3, speed: 300 },
     };
-    const config = colorMap[skillId] ?? { color: 0xaa44ff, radius: 4, speed: 450 };
+    const config = colorMap[skillId] ?? { color: 0xaa44ff, radius: 4, speed: 225 };
 
-    const startX = this.player.container.x;
-    const startY = this.player.container.y - 40; // 从身体/手部位置发射
-    const endX = target.container.x;
-    const endY = target.container.y;
-
-    const projectile = this.add.circle(startX, startY, config.radius, config.color);
+    const projectile = this.add.circle(this.player.container.x, this.player.container.y - 20, config.radius, config.color);
     projectile.setDepth(2000);
 
-    const distance = Phaser.Math.Distance.Between(startX, startY, endX, endY);
-    const duration = (distance / config.speed) * 1000;
-
-    this.tweens.add({
-      targets: projectile,
-      x: endX,
-      y: endY,
-      duration: Math.max(100, duration),
-      ease: 'Linear',
-      onComplete: () => {
-        projectile.destroy();
-        onHit();
+    // 每帧更新弹道方向，追踪目标当前位置
+    const hitDistance = 10; // 判定命中距离（像素）
+    const timer = this.time.addEvent({
+      delay: 16, // ~60fps
+      loop: true,
+      callback: () => {
+        if (target.isDead || !target.container.active) {
+          projectile.destroy();
+          timer.destroy();
+          return;
+        }
+        const tx = target.container.x;
+        const ty = target.container.y;
+        const dist = Phaser.Math.Distance.Between(projectile.x, projectile.y, tx, ty);
+        if (dist <= hitDistance) {
+          projectile.destroy();
+          timer.destroy();
+          onHit();
+          return;
+        }
+        // 朝目标移动
+        const speed = config.speed * (16 / 1000); // 每帧移动像素
+        const angle = Phaser.Math.Angle.Between(projectile.x, projectile.y, tx, ty);
+        projectile.x += Math.cos(angle) * speed;
+        projectile.y += Math.sin(angle) * speed;
       },
     });
   }
@@ -462,10 +547,10 @@ export class DungeonScene extends Phaser.Scene {
         const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level, this.player.character);
         if (result) {
           if (target instanceof Monster) {
-            target.takeDamage(result.finalDamage, result.isCritical, true);
+            target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
             target.flashHit();
           } else if (target instanceof Boss) {
-            target.takeDamage(result.finalDamage, result.isCritical, true);
+            target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
             target.flashHit();
           }
         }
@@ -476,10 +561,10 @@ export class DungeonScene extends Phaser.Scene {
       const result = executeSkillDamage(this.player.combatEntity, target.combatEntity, skillSlot.skillId, skillSlot.level, this.player.character);
       if (result) {
         if (target instanceof Monster) {
-          target.takeDamage(result.finalDamage, result.isCritical, true);
+          target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
           target.flashHit();
         } else if (target instanceof Boss) {
-          target.takeDamage(result.finalDamage, result.isCritical, true);
+          target.takeDamage(result.finalDamage, result.isCritical, true, this.player.combatEntity);
           target.flashHit();
         }
       }
@@ -745,9 +830,7 @@ export class DungeonScene extends Phaser.Scene {
     boss.onDeath = (m) => this.onMonsterDeath(m);
     boss.isWalkable = (gx, gy) => {
       if (!this.floorWalkability.isWalkable(gx, gy)) return false;
-      const pg = this.player.getGridPosition();
-      if (pg.x === gx && pg.y === gy) return false;
-      return !this.monsters.some(m => m !== boss && !m.isDead && m.gridX === gx && m.gridY === gy);
+      return !this.isOccupied(gx, gy, boss);
     };
     boss.setTarget(this.player.combatEntity);
 
@@ -787,15 +870,23 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
+  /** 统一碰撞检测：检查格子是否被玩家或任何怪物/Boss占用 */
+  private isOccupied(gx: number, gy: number, exclude?: Monster | Boss): boolean {
+    const pg = this.player.getGridPosition();
+    if (pg.x === gx && pg.y === gy) return true;
+    return this.monsters.some(m => m !== exclude && !m.isDead && m.gridX === gx && m.gridY === gy);
+  }
+
   private applyMonsterWalkability(): void {
     for (const monster of this.monsters) {
       monster.isWalkable = (gx, gy) => {
-        if (!this.floorWalkability.isWalkable(gx, gy)) return false;
-        // 不能走到玩家所在格子
-        const pg = this.player.getGridPosition();
-        if (pg.x === gx && pg.y === gy) return false;
-        // 不能走到其他怪物所在格子
-        return !this.monsters.some(m => m !== monster && !m.isDead && m.gridX === gx && m.gridY === gy);
+        const floorOk = this.floorWalkability.isWalkable(gx, gy);
+        const occupied = this.isOccupied(gx, gy, monster);
+        if (!floorOk || occupied) {
+          console.log(`[MonsterWalk] (${gx},${gy}) floor=${floorOk} occupied=${occupied}`);
+        }
+        if (!floorOk) return false;
+        return !occupied;
       };
     }
   }

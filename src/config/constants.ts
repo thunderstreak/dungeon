@@ -17,7 +17,7 @@ export const CANVAS_WIDTH = 960;
 export const CANVAS_HEIGHT = 640;
 
 /** 瓦片大小 (像素) — 正方形 */
-export const TILE_SIZE = 64;
+export const TILE_SIZE = 32;
 
 /** 兼容旧代码 */
 export const ISO_TILE_WIDTH = TILE_SIZE;

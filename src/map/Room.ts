@@ -65,6 +65,22 @@ export class Room {
       walkableSet.add(`${tile.x},${tile.y}`);
     }
 
+    // 底层：铺满整个房间区域的深色背景（填充墙壁后面的间隙）
+    const bgColor = 0x0a0a12;
+    const pos = this.roomData.position;
+    for (let gx = pos.x; gx < pos.x + pos.width; gx++) {
+      for (let gy = pos.y; gy < pos.y + pos.height; gy++) {
+        if (!walkableSet.has(`${gx},${gy}`)) {
+          const bgPos = isoToScreen(gx, gy);
+          const cx = bgPos.screenX + offsetX + TILE_SIZE / 2;
+          const cy = bgPos.screenY + offsetY + TILE_SIZE / 2;
+          const bg = this.scene.add.rectangle(cx, cy, TILE_SIZE, TILE_SIZE, bgColor);
+          bg.setDepth(getDepthSort(gy) - 0.1);
+          this.container.add(bg);
+        }
+      }
+    }
+
     // 绘制地板 + 墙壁
     for (const tile of this.layout.walkableTiles) {
       const pos = isoToScreen(tile.x, tile.y);
@@ -76,33 +92,142 @@ export class Room {
       this.container.add(tileRect);
 
       // 检查四个方向，非可行走则放置墙壁
-      // 上方 (y-1) → wall-x 横墙
-      if (!walkableSet.has(`${tile.x},${tile.y - 1}`)) {
-        const wall = this.scene.add.image(screenX, screenY - TILE_SIZE / 2, 'wall_x');
+      const hasWallAbove = !walkableSet.has(`${tile.x},${tile.y - 1}`);
+      const hasWallBelow = !walkableSet.has(`${tile.x},${tile.y + 1}`);
+      const hasWallLeft = !walkableSet.has(`${tile.x - 1},${tile.y}`);
+      const hasWallRight = !walkableSet.has(`${tile.x + 1},${tile.y}`);
+
+      // 随机选择纹理
+      const wallIdx = Math.floor(Math.random() * 3) + 1;
+      const cornerIdx = Math.floor(Math.random() * 3) + 1;
+      const wallKey = `wall_tile_${wallIdx}`;
+      const cornerKey = `wall_corner_${cornerIdx}`;
+
+      // ±X方向墙体 → wallTiles（横向砖墙，填满被排除的边缘行）
+      const WH = TILE_SIZE; // 墙体高度（填满整格，与侧墙一致）
+      if (hasWallAbove) {
+        const wall = this.scene.add.image(screenX, screenY - TILE_SIZE / 2, wallKey);
         wall.setOrigin(0.5, 1);
+        wall.setDisplaySize(TILE_SIZE, WH);
         wall.setDepth(getDepthSort(tile.y) - 1);
         this.container.add(wall);
       }
-      // 下方 (y+1) → wall-x 横墙
-      if (!walkableSet.has(`${tile.x},${tile.y + 1}`)) {
-        const wall = this.scene.add.image(screenX, screenY + TILE_SIZE / 2, 'wall_x');
+      if (hasWallBelow) {
+        const wall = this.scene.add.image(screenX, screenY + TILE_SIZE / 2, wallKey);
         wall.setOrigin(0.5, 0);
+        wall.setDisplaySize(TILE_SIZE, WH);
         wall.setDepth(getDepthSort(tile.y + 1));
         this.container.add(wall);
       }
-      // 左方 (x-1) → wall-y 纵墙
-      if (!walkableSet.has(`${tile.x - 1},${tile.y}`)) {
-        const wall = this.scene.add.image(screenX - TILE_SIZE / 2, screenY, 'wall_y');
+      // ±Y方向墙体 → doorsAndEntrances（纵向墙体，缩小宽度不侵入可行走区域）
+      const WW = TILE_SIZE * 0.4; // 墙体宽度（占格子40%）
+      if (hasWallLeft) {
+        const wall = this.scene.add.image(screenX - TILE_SIZE / 2, screenY, 'wall_door');
         wall.setOrigin(1, 0.5);
+        wall.setDisplaySize(WW, TILE_SIZE);
         wall.setDepth(getDepthSort(tile.y) - 0.5);
         this.container.add(wall);
       }
-      // 右方 (x+1) → wall-y 纵墙
-      if (!walkableSet.has(`${tile.x + 1},${tile.y}`)) {
-        const wall = this.scene.add.image(screenX + TILE_SIZE / 2, screenY, 'wall_y');
+      if (hasWallRight) {
+        const wall = this.scene.add.image(screenX + TILE_SIZE / 2, screenY, 'wall_door');
         wall.setOrigin(0, 0.5);
+        wall.setDisplaySize(WW, TILE_SIZE);
         wall.setDepth(getDepthSort(tile.y) + 0.5);
         this.container.add(wall);
+      }
+
+      // X与Y墙体交汇转角 → wallCorners（缩小尺寸）
+      const CS = TILE_SIZE;
+      if (hasWallAbove && hasWallLeft) {
+        const corner = this.scene.add.image(screenX - TILE_SIZE / 2, screenY - TILE_SIZE / 2, cornerKey);
+        corner.setOrigin(1, 1);
+        corner.setDisplaySize(CS, CS);
+        corner.setDepth(getDepthSort(tile.y) - 1.5);
+        this.container.add(corner);
+      }
+      if (hasWallAbove && hasWallRight) {
+        const corner = this.scene.add.image(screenX + TILE_SIZE / 2, screenY - TILE_SIZE / 2, cornerKey);
+        corner.setOrigin(0, 1);
+        corner.setDisplaySize(CS, CS);
+        corner.setFlipX(true);
+        corner.setDepth(getDepthSort(tile.y) - 1.5);
+        this.container.add(corner);
+      }
+      if (hasWallBelow && hasWallLeft) {
+        const corner = this.scene.add.image(screenX - TILE_SIZE / 2, screenY + TILE_SIZE / 2, cornerKey);
+        corner.setOrigin(1, 0);
+        corner.setDisplaySize(CS, CS);
+        corner.setDepth(getDepthSort(tile.y + 1) + 0.5);
+        this.container.add(corner);
+      }
+      if (hasWallBelow && hasWallRight) {
+        const corner = this.scene.add.image(screenX + TILE_SIZE / 2, screenY + TILE_SIZE / 2, cornerKey);
+        corner.setOrigin(0, 0);
+        corner.setDisplaySize(CS, CS);
+        corner.setFlipX(true);
+        corner.setDepth(getDepthSort(tile.y + 1) + 0.5);
+        this.container.add(corner);
+      }
+
+      // 墙端边缘（墙体结束处）
+      const ES = TILE_SIZE;
+      if (hasWallAbove && hasWallLeft && !walkableSet.has(`${tile.x - 1},${tile.y - 1}`)) {
+        const edge = this.scene.add.image(screenX - TILE_SIZE / 2, screenY - TILE_SIZE / 2, 'wall_edge_left_1');
+        edge.setOrigin(1, 1);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y) - 1.6);
+        this.container.add(edge);
+      }
+      if (hasWallBelow && hasWallLeft && !walkableSet.has(`${tile.x - 1},${tile.y + 1}`)) {
+        const edge = this.scene.add.image(screenX - TILE_SIZE / 2, screenY + TILE_SIZE / 2, 'wall_edge_left_bottom');
+        edge.setOrigin(1, 0);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y + 1) + 0.6);
+        this.container.add(edge);
+      }
+      if (hasWallAbove && hasWallRight && !walkableSet.has(`${tile.x + 1},${tile.y - 1}`)) {
+        const edge = this.scene.add.image(screenX + TILE_SIZE / 2, screenY - TILE_SIZE / 2, 'wall_edge_right_1');
+        edge.setOrigin(0, 1);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y) - 1.6);
+        this.container.add(edge);
+      }
+      if (hasWallBelow && hasWallRight && !walkableSet.has(`${tile.x + 1},${tile.y + 1}`)) {
+        const edge = this.scene.add.image(screenX + TILE_SIZE / 2, screenY + TILE_SIZE / 2, 'wall_edge_right_bottom');
+        edge.setOrigin(0, 0);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y + 1) + 0.6);
+        this.container.add(edge);
+      }
+      if (hasWallLeft && hasWallAbove && !walkableSet.has(`${tile.x - 1},${tile.y - 1}`)) {
+        const edge = this.scene.add.image(screenX - TILE_SIZE / 2, screenY - TILE_SIZE / 2, 'wall_edge_left_2');
+        edge.setOrigin(1, 1);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y) - 1.6);
+        this.container.add(edge);
+      }
+      if (hasWallRight && hasWallAbove && !walkableSet.has(`${tile.x + 1},${tile.y - 1}`)) {
+        const edge = this.scene.add.image(screenX + TILE_SIZE / 2, screenY - TILE_SIZE / 2, 'wall_edge_right_1');
+        edge.setOrigin(0, 1);
+        edge.setFlipX(true);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y) - 1.6);
+        this.container.add(edge);
+      }
+      if (hasWallLeft && hasWallBelow && !walkableSet.has(`${tile.x - 1},${tile.y + 1}`)) {
+        const edge = this.scene.add.image(screenX - TILE_SIZE / 2, screenY + TILE_SIZE / 2, 'wall_edge_left_bottom');
+        edge.setOrigin(1, 0);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y + 1) + 0.6);
+        this.container.add(edge);
+      }
+      if (hasWallRight && hasWallBelow && !walkableSet.has(`${tile.x + 1},${tile.y + 1}`)) {
+        const edge = this.scene.add.image(screenX + TILE_SIZE / 2, screenY + TILE_SIZE / 2, 'wall_edge_right_bottom');
+        edge.setOrigin(0, 0);
+        edge.setFlipX(true);
+        edge.setDisplaySize(ES, ES);
+        edge.setDepth(getDepthSort(tile.y + 1) + 0.6);
+        this.container.add(edge);
       }
     }
 
@@ -217,10 +342,12 @@ export class Room {
     this.container.add(rect);
   }
 
-  /** 创建正方形瓦片 */
+  /** 创建正方形瓦片（随机选择地板纹理，缩放到格子大小） */
   private createTile(x: number, y: number, _color: number): Phaser.GameObjects.Image {
-    const img = this.scene.add.image(x, y, 'floor_tile');
+    const idx = Math.floor(Math.random() * 6) + 1;
+    const img = this.scene.add.image(x, y, `floor_tile_${idx}`);
     img.setOrigin(0.5, 0.5);
+    img.setDisplaySize(TILE_SIZE, TILE_SIZE);
     return img;
   }
 

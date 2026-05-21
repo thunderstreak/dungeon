@@ -40,6 +40,7 @@ export class Player {
   visualY: number;
   private targetVisualX = 0;
   private targetVisualY = 0;
+  private gridBorder: Phaser.GameObjects.Rectangle;
   private readonly LERP_SPEED = 0.2; // 插值速度（0~1）
   private moveAnimationTime = 0;
 
@@ -48,6 +49,7 @@ export class Player {
   private moveSpeed: number;
   private moveAccumulator = 0;
   private readonly BASE_MOVE_INTERVAL = 180; // 基础移动间隔(ms)
+  private pathQueue: { x: number; y: number }[] = []; // BFS寻路路径
 
   // 攻击目标
   attackTarget: Monster | Boss | null = null;
@@ -76,16 +78,25 @@ export class Player {
     // 初始化恢复状态
     this.regenState = createRegenState();
 
-    // 屏幕坐标
+    // 屏幕坐标（偏移半格使脚部对齐格子中心）
     const pos = isoToScreen(spawnX, spawnY);
-    this.visualX = pos.screenX;
-    this.visualY = pos.screenY;
-    this.targetVisualX = pos.screenX;
-    this.targetVisualY = pos.screenY;
+    this.visualX = pos.screenX + TILE_SIZE / 2;
+    this.visualY = pos.screenY + TILE_SIZE / 2;
+    this.targetVisualX = pos.screenX + TILE_SIZE / 2;
+    this.targetVisualY = pos.screenY + TILE_SIZE / 2;
 
     // 容器
-    this.container = scene.add.container(pos.screenX, pos.screenY);
+    this.container = scene.add.container(pos.screenX + TILE_SIZE / 2, pos.screenY + TILE_SIZE / 2);
     this.container.setDepth(getDepthSort(spawnY));
+
+    // 格子红色边框标注（居中于容器，即格子中心）
+    this.gridBorder = scene.add.rectangle(0, 0, TILE_SIZE, TILE_SIZE);
+    this.gridBorder.setOrigin(0.5, 0.5);
+    this.gridBorder.setStrokeStyle(2, 0xff0000);
+    this.gridBorder.fillColor = 0xff0000;
+    this.gridBorder.fillAlpha = 0;
+    this.gridBorder.setDepth(-1);
+    this.container.add(this.gridBorder);
 
     // 根据职业选择渲染方式
     this.isMage = character.class === 'mage';
@@ -93,9 +104,9 @@ export class Player {
     if (this.isMage) {
       // 确保法师动画已创建（可能在任意场景中首次创建Player）
       this.ensureWizardAnims(scene);
-      // 法师使用精灵图，origin设为底部中心（脚部对齐）
+      // 法师使用精灵图，origin设为脚部位置（帧内约70%高度处）
       this.sprite = scene.add.sprite(0, 0, 'wizard_idle');
-      this.sprite.setOrigin(0.5, 1.0);
+      this.sprite.setOrigin(0.5, 0.7);
       this.sprite.setScale(0.8, 0.8);
       this.sprite.play('wizard_idle');
       this.container.add(this.sprite);
@@ -169,53 +180,115 @@ export class Player {
     }
   }
 
-  /** 处理点击移动 */
+  /** 处理点击移动（沿BFS路径逐步移动） */
   private handleClickMove(delta: number): void {
     if (!this.moveTarget) return;
 
+    // 检查是否到达最终目标
     const pos = isoToScreen(this.gridX, this.gridY);
     const dist = Phaser.Math.Distance.Between(
       pos.screenX, pos.screenY,
       this.moveTarget.x, this.moveTarget.y,
     );
-
     if (dist < this.moveThreshold) {
       this.moveTarget = null;
       this.isMoving = false;
+      this.pathQueue = [];
       return;
     }
 
-    // 累积时间控制点击移动速度
+    // 累积时间控制移动速度
     const interval = this.BASE_MOVE_INTERVAL * (100 / this.moveSpeed);
     this.moveAccumulator += delta;
     if (this.moveAccumulator < interval) return;
     this.moveAccumulator -= interval;
 
-    // 计算目标格子
-    const targetIso = screenToIso(this.moveTarget.x, this.moveTarget.y);
-    const tgx = Math.round(targetIso.x);
-    const tgy = Math.round(targetIso.y);
-
-    // 向目标移动一步
-    const ddx = Math.sign(tgx - this.gridX);
-    const ddy = Math.sign(tgy - this.gridY);
-
-    if (ddx !== 0 || ddy !== 0) {
-      if (Math.abs(tgx - this.gridX) >= Math.abs(tgy - this.gridY)) {
-        this.facingDirection = ddx > 0 ? 'right' : 'left';
-      } else {
-        this.facingDirection = ddy > 0 ? 'down' : 'up';
+    // 如果路径队列为空或当前不在路径起点，重新计算路径
+    if (this.pathQueue.length === 0 || this.pathQueue[0].x !== this.gridX || this.pathQueue[0].y !== this.gridY) {
+      const targetIso = screenToIso(this.moveTarget.x, this.moveTarget.y);
+      const tgx = Math.round(targetIso.x);
+      const tgy = Math.round(targetIso.y);
+      this.pathQueue = this.findPath(this.gridX, this.gridY, tgx, tgy);
+      if (this.pathQueue.length === 0) {
+        this.moveTarget = null;
+        this.isMoving = false;
+        return;
       }
+    }
 
-      if (Math.abs(tgx - this.gridX) >= Math.abs(tgy - this.gridY)) {
-        this.moveByGrid(ddx, 0);
-      } else {
-        this.moveByGrid(0, ddy);
-      }
-    } else {
+    // 沿路径移动一步
+    const next = this.pathQueue[1]; // [0]是当前格，[1]是下一步
+    if (!next) {
       this.moveTarget = null;
       this.isMoving = false;
+      this.pathQueue = [];
+      return;
     }
+
+    const dx = next.x - this.gridX;
+    const dy = next.y - this.gridY;
+
+    // 更新朝向
+    if (dx !== 0) this.facingDirection = dx > 0 ? 'right' : 'left';
+    else if (dy !== 0) this.facingDirection = dy > 0 ? 'down' : 'up';
+
+    if (this.moveByGrid(dx, dy)) {
+      // 移动成功，移除已走过的路径点
+      this.pathQueue.shift();
+    } else {
+      // 被阻挡，重新计算路径
+      const targetIso = screenToIso(this.moveTarget.x, this.moveTarget.y);
+      const tgx = Math.round(targetIso.x);
+      const tgy = Math.round(targetIso.y);
+      this.pathQueue = this.findPath(this.gridX, this.gridY, tgx, tgy);
+      if (this.pathQueue.length === 0) {
+        this.moveTarget = null;
+        this.isMoving = false;
+      }
+    }
+  }
+
+  /** BFS寻路：返回从(startX,startY)到(endX,endY)的路径（含起点和终点） */
+  findPath(startX: number, startY: number, endX: number, endY: number): { x: number; y: number }[] {
+    if (startX === endX && startY === endY) return [{ x: startX, y: startY }];
+    if (!this.isWalkable(endX, endY)) return [];
+
+    const visited = new Set<string>();
+    const parent = new Map<string, { x: number; y: number }>();
+    const queue: { x: number; y: number }[] = [{ x: startX, y: startY }];
+    visited.add(`${startX},${startY}`);
+
+    const dirs = [
+      { dx: 0, dy: -1 }, // 上
+      { dx: 0, dy: 1 },  // 下
+      { dx: -1, dy: 0 }, // 左
+      { dx: 1, dy: 0 },  // 右
+    ];
+
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      for (const d of dirs) {
+        const nx = cur.x + d.dx;
+        const ny = cur.y + d.dy;
+        const key = `${nx},${ny}`;
+        if (visited.has(key)) continue;
+        if (!this.isWalkable(nx, ny)) continue;
+        visited.add(key);
+        parent.set(key, cur);
+        if (nx === endX && ny === endY) {
+          // 回溯路径
+          const path: { x: number; y: number }[] = [];
+          let node: { x: number; y: number } | undefined = { x: endX, y: endY };
+          while (node) {
+            path.unshift(node);
+            node = parent.get(`${node.x},${node.y}`);
+          }
+          return path;
+        }
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    return []; // 无法到达
   }
 
   /** 检查是否在攻击范围内（相邻1格） */
@@ -236,8 +309,8 @@ export class Player {
     this.gridY = newY;
 
     const pos = isoToScreen(newX, newY);
-    this.targetVisualX = pos.screenX;
-    this.targetVisualY = pos.screenY;
+    this.targetVisualX = pos.screenX + TILE_SIZE / 2;
+    this.targetVisualY = pos.screenY + TILE_SIZE / 2;
     this.container.setDepth(getDepthSort(newY));
 
     this.isMoving = true;
@@ -248,6 +321,12 @@ export class Player {
   moveToScreen(targetX: number, targetY: number, cameraScrollX = 0, cameraScrollY = 0): void {
     this.moveTarget = { x: targetX + cameraScrollX, y: targetY + cameraScrollY };
     this.moveAccumulator = 0;
+
+    // BFS寻路
+    const targetIso = screenToIso(this.moveTarget.x, this.moveTarget.y);
+    const tgx = Math.round(targetIso.x);
+    const tgy = Math.round(targetIso.y);
+    this.pathQueue = this.findPath(this.gridX, this.gridY, tgx, tgy);
   }
 
   /** 停止移动 */
@@ -463,7 +542,7 @@ export class Player {
   /** 根据 moveSpeed 百分比计算实际像素速度 */
   private calcMoveSpeed(moveSpeedPercent: number): number {
     const clamped = Math.max(MIN_SPEED, Math.min(MAX_SPEED, moveSpeedPercent));
-    return 200 * (clamped / DEFAULT_MOVE_SPEED);
+    return 100 * (clamped / DEFAULT_MOVE_SPEED);
   }
 
   destroy(): void {

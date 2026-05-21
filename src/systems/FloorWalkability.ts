@@ -38,8 +38,9 @@ export function createFloorWalkability(
   }
 
   for (const corridor of corridors) {
+    const orientation = getCorridorOrientation(corridor.path);
     for (const tile of corridor.path) {
-      for (const expanded of expandCorridorTile(tile, corridorWidth)) {
+      for (const expanded of expandCorridorTile(tile, corridorWidth, orientation)) {
         addTile(expanded);
       }
     }
@@ -51,13 +52,22 @@ export function createFloorWalkability(
   };
 }
 
-function expandCorridorTile(tile: Vector2, corridorWidth: number): Vector2[] {
+function getCorridorOrientation(path: Vector2[]): 'x' | 'y' {
+  if (path.length < 2) return 'x';
+  const dx = Math.abs(path[1].x - path[0].x);
+  const dy = Math.abs(path[1].y - path[0].y);
+  return dx >= dy ? 'x' : 'y';
+}
+
+function expandCorridorTile(tile: Vector2, corridorWidth: number, orientation: 'x' | 'y'): Vector2[] {
   if (corridorWidth <= 1) return [tile];
 
-  return [
-    tile,
-    { x: tile.x, y: tile.y + 1 },
-  ];
+  // X轴走廊向Y方向扩展，Y轴走廊向X方向扩展
+  if (orientation === 'x') {
+    return [tile, { x: tile.x, y: tile.y + 1 }];
+  } else {
+    return [tile, { x: tile.x + 1, y: tile.y }];
+  }
 }
 
 function calculateBounds(tiles: Vector2[]): FloorBounds {

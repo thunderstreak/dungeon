@@ -77,10 +77,10 @@ const AI_CONFIG: Record<string, {
   prefersMelee: boolean;
   fleeThreshold: number; // HP百分比，低于此值逃跑
 }> = {
-  melee:   { aggroMultiplier: 1.0, attackRange: 40, prefersMelee: true,  fleeThreshold: 0 },
-  ranged:  { aggroMultiplier: 0.8, attackRange: 160, prefersMelee: false, fleeThreshold: 0.2 },
-  caster:  { aggroMultiplier: 0.6, attackRange: 200, prefersMelee: false, fleeThreshold: 0.3 },
-  support: { aggroMultiplier: 0.5, attackRange: 180, prefersMelee: false, fleeThreshold: 0.4 },
+  melee:   { aggroMultiplier: 1.0, attackRange: 20, prefersMelee: true,  fleeThreshold: 0 },
+  ranged:  { aggroMultiplier: 0.8, attackRange: 80, prefersMelee: false, fleeThreshold: 0.2 },
+  caster:  { aggroMultiplier: 0.6, attackRange: 100, prefersMelee: false, fleeThreshold: 0.3 },
+  support: { aggroMultiplier: 0.5, attackRange: 90, prefersMelee: false, fleeThreshold: 0.4 },
 };
 
 const BASE_MONSTER_MOVE_INTERVAL = 440;
@@ -482,7 +482,7 @@ export class Monster {
   }
 
   /** 受伤（skipHpReduce=true 时只更新视觉效果，HP已由外部扣减） */
-  takeDamage(damage: number, isCritical: boolean, skipHpReduce = false): void {
+  takeDamage(damage: number, isCritical: boolean, skipHpReduce = false, attacker?: CombatEntity): void {
     if (this.isDead) return;
 
     if (!skipHpReduce) {
@@ -493,7 +493,10 @@ export class Monster {
     showDamagePopup(this.scene, this.container.x, this.container.y - 20, damage, isCritical ? 'critical' : 'normal');
 
     // 被攻击后仇恨转向攻击者
-    if (this.aiState === 'idle' || this.aiState === 'patrol') {
+    if (attacker) {
+      this.aggroTarget = attacker.id;
+    }
+    if (this.aiState === 'idle' || this.aiState === 'patrol' || this.aiState === 'chase') {
       this.resetAggroTracking();
       this.aiState = 'chase';
     }
@@ -507,7 +510,7 @@ export class Monster {
   private fireProjectile(targetX: number, targetY: number, onHit: () => void): void {
     const color = this.monsterData.type === 'caster' ? 0xaa44ff : 0xff6622;
     const radius = 3;
-    const speed = 350;
+    const speed = 175;
 
     const startX = this.container.x;
     const startY = this.container.y;

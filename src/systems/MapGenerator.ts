@@ -181,12 +181,20 @@ function generateRoomObstacles(roomRect: Rectangle, roomType: RoomType): Obstacl
   return obstacles;
 }
 
-/** 计算可通行格子 */
+/** 计算可通行格子（排除边缘一格，防止玩家走到墙壁上） */
 function calculateWalkableTiles(roomRect: Rectangle, obstacles: Obstacle[]): Vector2[] {
   const walkable: Vector2[] = [];
+  const margin = 1; // 四周边缘不可行走
 
   for (let x = roomRect.x; x < roomRect.x + roomRect.width; x++) {
     for (let y = roomRect.y; y < roomRect.y + roomRect.height; y++) {
+      // 排除房间四周边缘一格的格子
+      const isEdge = x < roomRect.x + margin ||
+                     x >= roomRect.x + roomRect.width - margin ||
+                     y < roomRect.y + margin ||
+                     y >= roomRect.y + roomRect.height - margin;
+      if (isEdge) continue;
+
       const isBlocked = obstacles.some(obs =>
         x >= obs.position.x && x < obs.position.x + obs.position.width &&
         y >= obs.position.y && y < obs.position.y + obs.position.height

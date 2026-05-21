@@ -86,12 +86,27 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet('wizard_jump', 'sprites/Wizard/jump.png', { frameWidth: 96, frameHeight: 96 });
     this.load.spritesheet('wizard_spawn', 'sprites/Wizard/spawn.png', { frameWidth: 128, frameHeight: 128 });
 
-    // 地牢地板 (64x64)
-    this.load.image('floor_tile', 'sprites/bg/floor.png');
+    // 地牢地板 (6种随机地板)
+    for (let i = 1; i <= 6; i++) {
+      this.load.image(`floor_tile_${i}`, `sprites/bg/floorTiles-${i}.png`);
+    }
 
-    // 地牢墙壁 (横墙64x20, 纵墙16x69)
-    this.load.image('wall_x', 'sprites/bg/wall-x.png');
-    this.load.image('wall_y', 'sprites/bg/wall-y.png');
+    // X方向墙体 (±x, 3种随机)
+    for (let i = 1; i <= 3; i++) {
+      this.load.image(`wall_tile_${i}`, `sprites/bg/wallTiles-${i}.webp`);
+    }
+    // Y方向墙体 (±y, 门/入口)
+    this.load.image('wall_door', 'sprites/bg/doorsAndEntrances.webp');
+    // 墙角 (3种随机，右侧镜像)
+    for (let i = 1; i <= 3; i++) {
+      this.load.image(`wall_corner_${i}`, `sprites/bg/wallCorners-${i}.webp`);
+    }
+    // 墙端边缘
+    this.load.image('wall_edge_left_1', 'sprites/bg/wallEdges-left-1.webp');
+    this.load.image('wall_edge_left_2', 'sprites/bg/wallEdges-left-2.webp');
+    this.load.image('wall_edge_right_1', 'sprites/bg/wallEdges-right-1.webp');
+    this.load.image('wall_edge_left_bottom', 'sprites/bg/wallEdges-left-buttom-1.webp');
+    this.load.image('wall_edge_right_bottom', 'sprites/bg/wallEdges-right-buttom-1.webp');
 
     // 战士角色精灵表 (32x32每帧，15排)
     this.load.spritesheet('warrior', 'sprites/Adventurer-Sprite-Sheet.png', { frameWidth: 32, frameHeight: 32 });

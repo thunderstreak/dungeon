@@ -45,7 +45,7 @@ export class Boss {
 
   // AI
   private aggroRangePx: number;
-  private attackRangePx = 60;
+  private attackRangePx = 30;
   private attackCooldown: number;
   private lastAttackTime = 0;
   private lastSkillTime = 0;
@@ -299,7 +299,7 @@ export class Boss {
   /** 发射弹道（Boss魔法技能用） */
   private fireProjectile(targetX: number, targetY: number, onHit: () => void): void {
     const radius = 5;
-    const speed = 300;
+    const speed = 150;
 
     const startX = this.container.x;
     const startY = this.container.y;
@@ -372,7 +372,7 @@ export class Boss {
   }
 
   /** 受伤（skipHpReduce=true 时只更新视觉效果，HP已由外部扣减） */
-  takeDamage(damage: number, isCritical: boolean, skipHpReduce = false): void {
+  takeDamage(damage: number, isCritical: boolean, skipHpReduce = false, attacker?: CombatEntity): void {
     if (this.isDead) return;
 
     if (!skipHpReduce) {
@@ -383,7 +383,7 @@ export class Boss {
     showDamagePopup(this.scene, this.container.x, this.container.y - 30, damage, isCritical ? 'critical' : 'normal');
 
     // 被攻击后仇恨转向攻击者
-    if (this.aiState === 'idle' || this.aiState === 'chase') {
+    if (this.aiState === 'idle' || this.aiState === 'chase' || this.aiState === 'attack') {
       this.resetAggroTracking();
       this.aiState = 'chase';
     }
