@@ -91,6 +91,9 @@
 │   │   ├── ShopSystem.ts    # 商店刷新系统
 │   │   ├── DailyRewardSystem.ts # 每日登录奖励
 │   │   ├── DeathSystem.ts   # 死亡惩罚系统
+│   │   ├── DungeonContext.ts # 地牢上下文接口（模块间共享状态）
+│   │   ├── CombatManager.ts # 战斗管理（普攻/技能/弹道/怪物死亡）
+│   │   ├── RoomManager.ts   # 房间管理（切换/怪物生成/Boss/通关）
 │   │   └── EventBus.ts      # 事件总线
 │   ├── entities/
 │   │   ├── Player.ts        # 玩家
@@ -686,7 +689,46 @@ function calculateHate(action: AggroAction, value: number): number {
 └─────────────────────────────────────────┘
 ```
 
-### 5.5 城镇系统流程
+### 5.5 DungeonScene 模块架构
+
+DungeonScene 原始文件超过 800 行，拆分为三个模块：
+
+```
+DungeonScene.ts (场景主控 ~560行)
+  ├── create() / update() — 场景生命周期
+  ├── 玩家移动、UI交互、摄像机控制
+  └── 委托到 ↓
+
+CombatManager.ts (~230行)
+  ├── attackMonster()    — 普通攻击
+  ├── fireProjectile()   — 远程弹道
+  ├── castSkillOnTarget() — 技能释放
+  └── onMonsterDeath()   — 死亡/掉落/经验处理
+
+RoomManager.ts (~130行)
+  ├── checkRoomTransition() — 房间切换检测
+  ├── enterRoom()           — 进入房间
+  ├── spawnAllRoomMonsters() — 批量生成怪物
+  ├── spawnBossInRoom()     — 生成Boss
+  └── onRoomCleared()       — 房间通关处理
+```
+
+**共享状态：DungeonContext 接口**
+```typescript
+interface DungeonContext {
+  scene: Phaser.Scene;
+  player: Player;
+  monsters: (Monster | Boss)[];
+  roomMonsters: Map<string, (Monster | Boss)[]>;
+  currentRoom: Room;
+  floorWalkability: FloorWalkability;
+  // ... 其他共享字段
+}
+```
+
+模块通过 `ctx` 传递共享状态，避免直接引用场景属性。场景在每次调用前通过 `syncCtx()` 同步可变字段。
+
+### 5.6 城镇系统流程
 
 ```
 ┌─────────────────────────────────────────┐
